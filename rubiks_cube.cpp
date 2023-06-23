@@ -38,9 +38,17 @@ void drawCube(
     GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
     
-    // Set the color vector uniform
-    GLuint colorLoc = glGetUniformLocation(shaderProgram, "cColor");
-    glUniform3fv(colorLoc, 1, glm::value_ptr(color));
+    // Set the light position uniform
+    GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
+    glUniform3f(lightPosLoc, 1.0f, 1.0f, 2.0f);
+
+    // Set the light color uniform
+    GLuint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+    glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
+
+    // Set the object color uniform
+    GLuint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
+    glUniform3f(objectColorLoc, 1.0f, 0.5f, 0.2f);
         
     // Bind the VAO
     glBindVertexArray(VAO);
@@ -92,7 +100,7 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO) {
     // Calculate the rotation angle based on time
     // Create the model matrix with rotation
 
-    float padding = 0.5f;
+    float padding = 0.05f;
     float spread = 1.0f + padding;
     
     for(int i = 0; i < 3; i++) {
