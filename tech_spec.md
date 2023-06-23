@@ -16,13 +16,16 @@ Plan:
 
 3. MVP
 
-    - [ ] Object Lighing
-    - [ ] Make each side of cubes different color
-        - [ ] Render each faces instead of drawing whole box all toghether
+    - [x] Object Lighing
+    - [x] Make each side of cubes different color
+        - [x] Only color "outer" sides of rubik's cube
     - [ ] Make movement of cube sides
-        - [ ] via code (and UI keys)
+        - [ ] via code
+        - [ ] UI keys
     - [ ] Camera
-        - [ ] via code (and using cursor)
+        - [x] via code
+        - [x] Movement via position of cursor
+        - [ ] Movement via cursor drag
 
 4. More
     - [ ] Controls

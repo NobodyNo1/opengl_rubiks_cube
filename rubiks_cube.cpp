@@ -5,139 +5,17 @@
 #include <glm/gtc/type_ptr.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 
+#include "draw.h"
 #include "vertices.h"
 #include <iostream>
 #include "tools/shader_loader.h"
-
-
-#define WINDOW_WIDTH    1280
-#define WINDOW_HEIGHT   720
+#include "config.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
+void processMouseInput(GLFWwindow *window);
 
-float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
-
-float modF(float value, float mod) {
-    int result = value;
-    while(result > mod){
-        result-=mod;
-    }
-    return result;
-}
-float sideColors[] = {
-    1.0f, 0.0f, 0.0f, // Front face (red)
-    0.0f, 0.0f, 1.0f, // Right face (blue)
-    1.0f, 0.5f, 0.0f, // Back face (orange) ??
-    0.0f, 1.0f, 0.0f, // Left face (green)
-    1.0f, 1.0f, 0.0f, // Bottom face (yellow)
-    1.0f, 1.0f, 1.0f  // Top face (white)
-};
-
-void drawCube(
-    unsigned int shaderProgram,
-    GLuint VAO,
-    glm::mat4 projection,
-    glm::mat4 view,
-    glm::mat4 model,
-    glm::vec3 color
-) {
-    for(int i = 1; i <= 6; i++){
-        GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-        // Set the view matrix uniform
-        GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        // Set the model matrix uniform
-        GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        
-        // Set the light position uniform
-        GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
-        glUniform3f(lightPosLoc, 1.0f, 1.0f, 2.0f);
-
-        // Set the light color uniform
-        GLuint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
-        glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
-
-        // Set the object color uniform
-        GLuint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
-        int arrIdx = i - 1;
-        glUniform3f(objectColorLoc, sideColors[0+arrIdx*3], sideColors[1+arrIdx*3], sideColors[2+arrIdx*3]);
-
-        // Bind the VAO
-        glBindVertexArray(VAO);
-
-        // Draw the box
-        glDrawElements(GL_TRIANGLES, 6*i, GL_UNSIGNED_INT, 0);
-
-        // Unbind the VAO
-        glBindVertexArray(0);
-    }
-}
-
-void drawCube(
-    unsigned int shaderProgram,
-    GLuint VAO,
-    glm::mat4 projection,
-    glm::mat4 view,
-    glm::mat4 model
-) {
-    glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f); 
-    drawCube(shaderProgram, VAO, projection, view, model, color);
-}
-
-void drawBox(unsigned int shaderProgram, GLuint VAO) {
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
-    // Create the view matrix
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glm::mat4 model = glm::mat4(1.0f);
-    float angle = static_cast<float>(glfwGetTime()) * 25.0f;  // Adjust the multiplier to change the rotation speed
-
-    // Calculate the rotation angle based on time
-    // Create the model matrix with rotation
-    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.5f, 1.0f, 0.0f));
-
-    drawCube(shaderProgram, VAO, projection, view, model);
-}
-
-void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO) {
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
-    // Create the view matrix
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glm::mat4 model = glm::mat4(1.0f);
-    float angle = static_cast<float>(glfwGetTime()) * 25.0f;  // Adjust the multiplier to change the rotation speed
-    //float angle = 0.0f;
-
-    glm::mat4 scaledAndRotatedModel = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-    scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(angle), glm::vec3(0.5f, 1.0f, 0.0f));
-    // Calculate the rotation angle based on time
-    // Create the model matrix with rotation
-
-    float padding = 0.01f;
-    float spread = 1.0f + padding;
-    
-    for(int i = 0; i < 3; i++) {
-        float z = spread * (i-1);
-        for(int j = 0; j < 3; j++) {
-            float y = spread * (j-1);
-            for(int k = 0; k<3; k++){
-                if(k==1 &&k == j && j == i) continue;
-                float x = spread*(k-1);
-
-                model = glm::translate(scaledAndRotatedModel, glm::vec3(x, y, z));
-                drawCube(shaderProgram, VAO, projection, view, model);
-            }
-        }
-    }
-    
-
-    //drawCube(shaderProgram, VAO, projection, view, model);
-}
+double rotationX, rotationY;
 
 int main() {
     glfwInit();
@@ -175,7 +53,6 @@ int main() {
         return -1;
     }
     
-
 
 
       // Create and bind the Vertex Array Object (VAO)
@@ -221,9 +98,9 @@ int main() {
 
      while (!glfwWindowShouldClose(window))
     {        
-
         // input
         // -----
+        processMouseInput(window);
         processInput(window);
         // render
         // ------
@@ -231,7 +108,11 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //
         ourShader.use();
-        draw3_3by3boxes(ourShader.ID, VAO);
+        
+        double distance = sqrt(pow(rotationX,2) + pow(rotationY, 2));
+
+        
+        draw3_3by3boxes(ourShader.ID, VAO, glm::vec3(distance*360.0f, rotationY, rotationX));
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -242,11 +123,25 @@ int main() {
 }
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
+
+
+
+void processMouseInput(GLFWwindow *window)
+{
+    double mouseX, mouseY;
+    glfwGetCursorPos(window, &mouseX, &mouseY);
+    if(mouseX < 0 || mouseY <0 || mouseX > WINDOW_WIDTH || mouseY> WINDOW_HEIGHT)
+        return;
+    rotationX = 2*mouseX/WINDOW_WIDTH - 1;
+    rotationY = 2*mouseY/WINDOW_HEIGHT - 1;
+}
+
 void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 }
+
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
