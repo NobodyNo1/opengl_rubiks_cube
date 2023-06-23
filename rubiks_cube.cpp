@@ -18,6 +18,21 @@ void processInput(GLFWwindow *window);
 
 float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
+float modF(float value, float mod) {
+    int result = value;
+    while(result > mod){
+        result-=mod;
+    }
+    return result;
+}
+float sideColors[] = {
+    1.0f, 0.0f, 0.0f, // Front face (red)
+    0.0f, 0.0f, 1.0f, // Right face (blue)
+    1.0f, 0.5f, 0.0f, // Back face (orange) ??
+    0.0f, 1.0f, 0.0f, // Left face (green)
+    1.0f, 1.0f, 0.0f, // Bottom face (yellow)
+    1.0f, 1.0f, 1.0f  // Top face (white)
+};
 
 void drawCube(
     unsigned int shaderProgram,
@@ -27,37 +42,40 @@ void drawCube(
     glm::mat4 model,
     glm::vec3 color
 ) {
-    GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
-    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    for(int i = 1; i <= 6; i++){
+        GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Set the view matrix uniform
-    GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        // Set the view matrix uniform
+        GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-    // Set the model matrix uniform
-    GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    
-    // Set the light position uniform
-    GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
-    glUniform3f(lightPosLoc, 1.0f, 1.0f, 2.0f);
-
-    // Set the light color uniform
-    GLuint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
-    glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
-
-    // Set the object color uniform
-    GLuint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
-    glUniform3f(objectColorLoc, 1.0f, 0.5f, 0.2f);
+        // Set the model matrix uniform
+        GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         
-    // Bind the VAO
-    glBindVertexArray(VAO);
+        // Set the light position uniform
+        GLuint lightPosLoc = glGetUniformLocation(shaderProgram, "lightPos");
+        glUniform3f(lightPosLoc, 1.0f, 1.0f, 2.0f);
 
-    // Draw the box
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        // Set the light color uniform
+        GLuint lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+        glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
 
-    // Unbind the VAO
-    glBindVertexArray(0);
+        // Set the object color uniform
+        GLuint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
+        int arrIdx = i - 1;
+        glUniform3f(objectColorLoc, sideColors[0+arrIdx*3], sideColors[1+arrIdx*3], sideColors[2+arrIdx*3]);
+
+        // Bind the VAO
+        glBindVertexArray(VAO);
+
+        // Draw the box
+        glDrawElements(GL_TRIANGLES, 6*i, GL_UNSIGNED_INT, 0);
+
+        // Unbind the VAO
+        glBindVertexArray(0);
+    }
 }
 
 void drawCube(
@@ -100,7 +118,7 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO) {
     // Calculate the rotation angle based on time
     // Create the model matrix with rotation
 
-    float padding = 0.05f;
+    float padding = 0.01f;
     float spread = 1.0f + padding;
     
     for(int i = 0; i < 3; i++) {

@@ -17,6 +17,8 @@ Plan:
 3. MVP
 
     - [ ] Object Lighing
+    - [ ] Make each side of cubes different color
+        - [ ] Render each faces instead of drawing whole box all toghether
     - [ ] Make movement of cube sides
         - [ ] via code (and UI keys)
     - [ ] Camera
