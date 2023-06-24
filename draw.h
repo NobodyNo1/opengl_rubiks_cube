@@ -127,7 +127,11 @@ void drawCubeOfRubiksCube(
 }
 
 
-void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO, glm::vec3 rotation) {
+void draw3_3by3boxes(
+    unsigned int shaderProgram,
+    GLuint VAO,
+    ModelRotation modelRotation
+) {
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
     // Create the view matrix
     glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -137,7 +141,7 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO, glm::vec3 rotation)
     //float angle = 0.0f;
 
     glm::mat4 scaledAndRotatedModel = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-    scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(rotation.x), glm::vec3(rotation.y, rotation.z, 0.0f));
+    scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(modelRotation.angle), glm::vec3(modelRotation.x, modelRotation.y, 0.0f));
     
     // Calculate the rotation angle based on time
     // Create the model matrix with rotation

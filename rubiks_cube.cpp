@@ -11,11 +11,12 @@
 #include "tools/shader_loader.h"
 #include "config.h"
 
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void processMouseInput(GLFWwindow *window);
 
-double rotationX, rotationY;
+ModelRotation modelRotation;
 
 int main() {
     glfwInit();
@@ -109,10 +110,13 @@ int main() {
         //
         ourShader.use();
         
-        double distance = sqrt(pow(rotationX,2) + pow(rotationY, 2));
+        // Rotation angle defined by how far cursor is located from center of the screen
+        modelRotation.angle= sqrt(
+            pow(modelRotation.x,2) + pow(modelRotation.y, 2)
+        )*360.0f;
 
         
-        draw3_3by3boxes(ourShader.ID, VAO, glm::vec3(distance*360.0f, rotationY, rotationX));
+        draw3_3by3boxes(ourShader.ID, VAO, modelRotation);
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -132,8 +136,9 @@ void processMouseInput(GLFWwindow *window)
     glfwGetCursorPos(window, &mouseX, &mouseY);
     if(mouseX < 0 || mouseY <0 || mouseX > WINDOW_WIDTH || mouseY> WINDOW_HEIGHT)
         return;
-    rotationX = 2*mouseX/WINDOW_WIDTH - 1;
-    rotationY = 2*mouseY/WINDOW_HEIGHT - 1;
+    // swapped to match rotation axis
+    modelRotation.y = 2*mouseX/WINDOW_WIDTH - 1;
+    modelRotation.x = 2*mouseY/WINDOW_HEIGHT - 1;
 }
 
 void processInput(GLFWwindow *window)
