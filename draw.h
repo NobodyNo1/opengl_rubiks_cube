@@ -130,12 +130,14 @@ void drawCubeOfRubiksCube(
 void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO, glm::vec3 rotation) {
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
     // Create the view matrix
+    // TODO: explanation
     glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     glm::mat4 model = glm::mat4(1.0f);
     //float angle = static_cast<float>(glfwGetTime()) * 25.0f;  // Adjust the multiplier to change the rotation speed
     //float angle = 0.0f;
 
+    // Scaling twice in order to fit in the screen
     glm::mat4 scaledAndRotatedModel = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
     scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(rotation.x), glm::vec3(rotation.y, rotation.z, 0.0f));
     
@@ -150,11 +152,18 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO, glm::vec3 rotation)
         for(int j = 0; j < 3; j++) {
             float y = spread * (j-1);
             for(int k = 0; k<3; k++){
+                // skipping center cube
                 if(k==1 && k == j && j == i) continue;
+
                 float x = spread*(k-1);
                 glm::vec3 sidePosition = glm::vec3(x, y, z);
-                model = glm::translate(scaledAndRotatedModel, sidePosition);
-
+                if (k == 0)
+                    model = glm::rotate(scaledAndRotatedModel, glm::radians((float)(glfwGetTime()* 25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+                else if (k == 2)
+                    model = glm::rotate(scaledAndRotatedModel, glm::radians((float)(glfwGetTime()* -25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+                else
+                    model = scaledAndRotatedModel;
+                model = glm::translate(model, sidePosition);
                 glm::vec3 sideOrder = glm::vec3(k-1, j-1, i-1);
                 drawCubeOfRubiksCube(shaderProgram, VAO, projection, view, model, sideOrder);
             }

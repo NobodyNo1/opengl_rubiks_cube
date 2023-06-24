@@ -18,6 +18,7 @@ void processMouseInput(GLFWwindow *window);
 double rotationX, rotationY;
 
 int main() {
+// === OPEN GL INIT ===
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -54,6 +55,7 @@ int main() {
     }
     
 
+// === SETUP DATA ===
 
       // Create and bind the Vertex Array Object (VAO)
     GLuint VAO;
@@ -109,8 +111,8 @@ int main() {
         //
         ourShader.use();
         
+        // TODO: make this more readable
         double distance = sqrt(pow(rotationX,2) + pow(rotationY, 2));
-
         
         draw3_3by3boxes(ourShader.ID, VAO, glm::vec3(distance*360.0f, rotationY, rotationX));
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
