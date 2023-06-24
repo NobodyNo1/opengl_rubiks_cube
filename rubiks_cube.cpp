@@ -19,6 +19,7 @@ void processMouseInput(GLFWwindow *window);
 ModelRotation modelRotation;
 
 int main() {
+// === OPEN GL INIT ===
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -55,6 +56,7 @@ int main() {
     }
     
 
+// === SETUP DATA ===
 
       // Create and bind the Vertex Array Object (VAO)
     GLuint VAO;
