@@ -22,10 +22,10 @@ Plan:
     - [ ] Make movement of cube sides
         - [ ] via code
         - [ ] UI keys
-    - [ ] Camera
+    - [x] Camera
         - [x] via code
         - [x] Movement via position of cursor
-        - [ ] Movement via cursor drag
+        - [x] Movement via cursor drag (GENERED BY ChatGPT need to learn how is done)
 
 4. More
     - [ ] Controls

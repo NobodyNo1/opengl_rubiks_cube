@@ -5,6 +5,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include "config.h"
+#include <stdio.h>
 
 float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
@@ -125,27 +126,120 @@ void drawCubeOfRubiksCube(
         glBindVertexArray(0);
     }
 }
+glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 9.0f);
+glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+glm::mat4 defaultView = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
+glm::mat4 lastView = defaultView;
+
+struct Plane
+{
+    glm::vec3 normal;
+    float distance;
+};
+
+int RayPlaneIntersection(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const Plane& plane, float& t)
+{
+    float denom = glm::dot(rayDirection, plane.normal);
+    if (abs(denom) < 0.0001f) // Check if the ray is parallel to the plane
+        return false;
+
+    float numer = -glm::dot(rayOrigin, plane.normal) - plane.distance;
+    t = numer / denom;
+
+    return t >= 0;
+}
+
 
 
 void draw3_3by3boxes(
     unsigned int shaderProgram,
     GLuint VAO,
-    ModelRotation modelRotation
+    CameraRotation cameraRotation,
+    DragAction dragAction
 ) {
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
     // Create the view matrix
     // TODO: explanation
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 view = defaultView;
+    int isRotationIsNotEmpty = cameraRotation.x!=0.0f && cameraRotation.y!=0.0f ;
+    if(cameraRotation.type == MOVE_ON_MOVE_OF_CURSOR) {
+        if(isRotationIsNotEmpty){
+           view = glm::rotate(view, glm::radians(cameraRotation.angle), glm::vec3(cameraRotation.x, cameraRotation.y, 0.0f));
+        }
+    } else if(cameraRotation.type == MOVE_ON_DRAG_OF_CURSOR){
+        if(isRotationIsNotEmpty){    
+            glm::vec3 cameraDirection = glm::normalize(cameraPosition - cameraTarget);
+            glm::vec3 cameraRight = glm::normalize(glm::cross(cameraUp, cameraDirection));
+            glm::vec3 cameraUpAdjusted = glm::cross(cameraDirection, cameraRight);      
+        //START GENERATED CODE
+            float yaw = 0.0f; // Horizontal rotation
+            float pitch = 0.0f; // Vertical rotation
+
+            printf("cameraRotation: %f, %f \n", cameraRotation.x, cameraRotation.y);
+            yaw += cameraRotation.x;
+            pitch +=  cameraRotation.y;
+
+            // Clamp the pitch to avoid flipping the camera
+            if (pitch > 89.0f)
+                pitch = 89.0f;
+            if (pitch < -89.0f)
+                pitch = -89.0f;
+                            
+            // Calculate rotation matrix
+            glm::mat4 rotation = glm::mat4(1.0f);
+            rotation = glm::rotate(rotation, glm::radians(yaw), cameraUpAdjusted);
+            rotation = glm::rotate(rotation, glm::radians(pitch), cameraRight);
+
+            cameraPosition = glm::vec3(rotation * glm::vec4(cameraPosition, 1.0f));
+            cameraTarget = glm::vec3(0.0f); // World origin
+            cameraDirection = glm::normalize(cameraPosition - cameraTarget);
+            cameraRight = glm::normalize(glm::cross(cameraUp, cameraDirection));
+            cameraUpAdjusted = glm::cross(cameraDirection, cameraRight);
+            
+            view = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
+
+            
+    //END OF GENERATED CODE
+             lastView = view;
+        } else {
+            view = lastView;
+        }
+    }
+    glm::vec3 rayDirection;
+    if(dragAction.isActive){
+        //other
+        glm::mat4 inverseProjectionMatrix = glm::inverse(projection);
+        glm::mat4 inverseViewMatrix = glm::inverse(view);
+
+        // Convert mouse coordinates to normalized device coordinates (NDC)
+        float ndcX = (2.0f * dragAction.x) / WINDOW_WIDTH - 1.0f;
+        float ndcY = 1.0f - (2.0f * dragAction.y) / WINDOW_HEIGHT;
+
+        // Create a 4D homogeneous position in clip space
+        glm::vec4 clipSpacePos = glm::vec4(ndcX, ndcY, 0.0f, 1.0f);
+
+        // Convert the position from clip space to view space
+        glm::vec4 viewSpacePos = inverseProjectionMatrix * clipSpacePos;
+        viewSpacePos /= viewSpacePos.w;
+
+        // Convert the position from view space to world space
+        glm::vec4 worldSpacePos = inverseViewMatrix * viewSpacePos;
+
+        // Calculate the ray direction in world space
+        glm::vec3 rayDirection = glm::normalize(glm::vec3(worldSpacePos) - cameraPosition);
+        printf("rayDirection: %f, %f, %f\n", rayDirection.x, rayDirection.y, rayDirection.z);
+        //end other
+    }
 
     glm::mat4 model = glm::mat4(1.0f);
     //float angle = static_cast<float>(glfwGetTime()) * 25.0f;  // Adjust the multiplier to change the rotation speed
     //float angle = 0.0f;
 
     // Scaling twice in order to fit in the screen
-    glm::mat4 scaledAndRotatedModel = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-    if(modelRotation.x!=0.0f && modelRotation.y!=0.0f)
-        scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(modelRotation.angle), glm::vec3(modelRotation.x, modelRotation.y, 0.0f));
-    
+    glm::mat4 cleanModel = model;
+   
     // Calculate the rotation angle based on time
     // Create the model matrix with rotation
 
@@ -156,19 +250,21 @@ void draw3_3by3boxes(
         float z = spread * (i-1);
         for(int j = 0; j < 3; j++) {
             float y = spread * (j-1);
-            for(int k = 0; k<3; k++){
+            for(int k = 0; k<3; k++) {
                 // skipping center cube
                 if(k==1 && k == j && j == i) continue;
 
                 float x = spread*(k-1);
                 glm::vec3 sidePosition = glm::vec3(x, y, z);
-                if (k == 0)
-                    model = glm::rotate(scaledAndRotatedModel, glm::radians((float)(glfwGetTime()* 25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-                else if (k == 2)
-                    model = glm::rotate(scaledAndRotatedModel, glm::radians((float)(glfwGetTime()* -25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-                else
-                    model = scaledAndRotatedModel;
-                model = glm::translate(model, sidePosition);
+                // if (k == 0)
+                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* 25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+                // else if (k == 2)
+                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* -25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+                // else
+                //     model = cleanModel;
+                //model = glm::translate(model, sidePosition);
+                model = glm::translate(cleanModel, sidePosition);
+
                 glm::vec3 sideOrder = glm::vec3(k-1, j-1, i-1);
                 drawCubeOfRubiksCube(shaderProgram, VAO, projection, view, model, sideOrder);
             }
