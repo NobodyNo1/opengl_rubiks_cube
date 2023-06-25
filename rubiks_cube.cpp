@@ -6,7 +6,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 
 #include "draw.h"
-#include "vertices.h"
 #include <iostream>
 #include "tools/shader_loader.h"
 #include "other/mouse.h"

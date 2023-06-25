@@ -6,6 +6,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "config.h"
 #include <stdio.h>
+#include "vertices.h"
 
 float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
@@ -28,6 +29,44 @@ int frontIdx    = 5;
 
 
 glm::vec3 blackColor = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 whiteColor = glm::vec3(1.0f, 1.0f, 1.0f);
+
+glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 9.0f);
+glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+glm::mat4 defaultView = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
+glm::mat4 lastView = defaultView;
+
+struct Plane
+{
+    glm::vec3 normal;
+    glm::vec3 position;
+};
+
+int collision_isActive = 0;
+int collision_found = 0;
+glm::vec3 rayOrigin;
+glm::vec3 rayDirection;
+
+int RayPlaneIntersection(
+    Plane plane
+    ,float& t
+)
+{
+    float denom = glm::dot(rayDirection, plane.normal);
+    if (abs(denom) < 0.0001f) // Check if the ray is parallel to the plane
+        return false;
+    float distance = sqrt(
+        pow(rayOrigin.x - plane.position.x,2) 
+        + pow(rayOrigin.y - plane.position.y,2) 
+        + pow(rayOrigin.z - plane.position.z,2)
+        );
+    float numer = -glm::dot(rayOrigin, plane.normal) - distance;
+    t = numer / denom;
+
+    return t >= 0;
+}
 
 glm::vec3 getVectorColor(
     int sideIdx,
@@ -79,16 +118,41 @@ glm::vec3 getVectorColor(
 
    return blackColor;
 }
-
+float min(float a, float b){
+    if(a<b)
+        return a;
+    return b;
+}
+glm::vec4 collisionWith = {0, 0, 0, 0};
+float minT = 100000.0;
 void drawCubeOfRubiksCube(
     unsigned int shaderProgram,
     GLuint VAO,
     glm::mat4 projection,
     glm::mat4 view,
     glm::mat4 model,
-    glm::vec3 sideOrder 
+    glm::vec3 sideOrder ,
+    glm::vec3 sidePosition
 ) {
+    float t;
     for(int i = 1; i <= 6; i++) {
+        // 3,4,5 + i*24
+        glm::vec3 normal =  glm::vec3(
+            (float)vertices[(i-1)*24 + 3],
+            (float)vertices[(i-1)*24 + 4],
+            (float)vertices[(i-1)*24 + 5]
+        );
+        if(collision_isActive && !collision_found){
+            Plane plane = Plane { normal , sidePosition };
+            
+            int result = RayPlaneIntersection(plane, t);
+            if(result) {
+                minT = min(minT, t);
+                if(minT == t){
+                    collisionWith = glm::vec4(sideOrder, i);
+                }
+            }
+        }
         GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
@@ -114,6 +178,15 @@ void drawCubeOfRubiksCube(
         int sideIndex = i - 1;
 
         glm::vec3 sideColor = getVectorColor(sideIndex, sideOrder);
+        if(collision_isActive && collision_found){
+            if(collisionWith.x == sideOrder.x
+            && collisionWith.y == sideOrder.y
+            && collisionWith.z == sideOrder.z
+            && collisionWith.w == i)
+            {
+            sideColor = whiteColor;
+            }
+        }
         glUniform3f(objectColorLoc, sideColor.x, sideColor.y, sideColor.z);
 
         // Bind the VAO
@@ -126,31 +199,6 @@ void drawCubeOfRubiksCube(
         glBindVertexArray(0);
     }
 }
-glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 9.0f);
-glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
-glm::mat4 defaultView = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
-glm::mat4 lastView = defaultView;
-
-struct Plane
-{
-    glm::vec3 normal;
-    float distance;
-};
-
-int RayPlaneIntersection(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const Plane& plane, float& t)
-{
-    float denom = glm::dot(rayDirection, plane.normal);
-    if (abs(denom) < 0.0001f) // Check if the ray is parallel to the plane
-        return false;
-
-    float numer = -glm::dot(rayOrigin, plane.normal) - plane.distance;
-    t = numer / denom;
-
-    return t >= 0;
-}
-
 
 
 void draw3_3by3boxes(
@@ -207,7 +255,6 @@ void draw3_3by3boxes(
             view = lastView;
         }
     }
-    glm::vec3 rayDirection;
     if(dragAction.isActive){
         //other
         glm::mat4 inverseProjectionMatrix = glm::inverse(projection);
@@ -228,9 +275,16 @@ void draw3_3by3boxes(
         glm::vec4 worldSpacePos = inverseViewMatrix * viewSpacePos;
 
         // Calculate the ray direction in world space
-        glm::vec3 rayDirection = glm::normalize(glm::vec3(worldSpacePos) - cameraPosition);
-        printf("rayDirection: %f, %f, %f\n", rayDirection.x, rayDirection.y, rayDirection.z);
+        rayDirection = glm::normalize(glm::vec3(worldSpacePos) - cameraPosition);
+        rayOrigin = cameraPosition;
+        //printf("rayDirection: %f, %f, %f\n", rayDirection.x, rayDirection.y, rayDirection.z);
         //end other
+        collision_isActive = 1;
+    } else {
+        collisionWith = {0,0,0,0};
+        minT = 100000;
+        collision_found = 0;
+        collision_isActive = 0;
     }
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -245,7 +299,6 @@ void draw3_3by3boxes(
 
     float padding = 0.01f;
     float spread = 1.0f + padding;
-    
     for(int i = 0; i < 3; i++) {
         float z = spread * (i-1);
         for(int j = 0; j < 3; j++) {
@@ -266,10 +319,19 @@ void draw3_3by3boxes(
                 model = glm::translate(cleanModel, sidePosition);
 
                 glm::vec3 sideOrder = glm::vec3(k-1, j-1, i-1);
-                drawCubeOfRubiksCube(shaderProgram, VAO, projection, view, model, sideOrder);
+                drawCubeOfRubiksCube(
+                    shaderProgram,
+                    VAO,
+                    projection,
+                    view,
+                    model,
+                    sideOrder,
+                    sidePosition
+                    );
             }
         }
     }
+    printf("Collides with side: %f, %f, %f, side: %f\n", collisionWith.x, collisionWith.y, collisionWith.z, collisionWith.w);
     
     //drawCube(shaderProgram, VAO, projection, view, model);
 }
