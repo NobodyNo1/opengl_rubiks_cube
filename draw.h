@@ -143,7 +143,8 @@ void draw3_3by3boxes(
 
     // Scaling twice in order to fit in the screen
     glm::mat4 scaledAndRotatedModel = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-    scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(modelRotation.angle), glm::vec3(modelRotation.x, modelRotation.y, 0.0f));
+    if(modelRotation.x!=0.0f && modelRotation.y!=0.0f)
+        scaledAndRotatedModel = glm::rotate(scaledAndRotatedModel, glm::radians(modelRotation.angle), glm::vec3(modelRotation.x, modelRotation.y, 0.0f));
     
     // Calculate the rotation angle based on time
     // Create the model matrix with rotation

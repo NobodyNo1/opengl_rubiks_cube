@@ -9,17 +9,28 @@
 #include "vertices.h"
 #include <iostream>
 #include "tools/shader_loader.h"
-#include "config.h"
+#include "other/mouse.h"
 
+#define MOVE_ON_MOVE_OF_CURSOR 1
+#define MOVE_ON_DRAG_OF_CURSOR 2
+
+static int object_move = MOVE_ON_DRAG_OF_CURSOR;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void processMouseInput(GLFWwindow *window);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void updateRotation();
 
-ModelRotation modelRotation;
+ModelRotation modelRotation = { 0.0f, 0.0f, 0.0f};
+// rotation can can be performed (but not necessarily applied)
+ModelRotation phantomModelRotation = {1.0f, 0.0f, 0.0f};
+MouseState mouseState;
+MouseState previousMouseState;
 
 int main() {
 // === OPEN GL INIT ===
+
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -94,12 +105,8 @@ int main() {
     GLuint modelViewLocation = glGetUniformLocation(ourShader.ID, "modelViewMatrix");
     GLuint viewLocation = glGetUniformLocation(ourShader.ID, "viewMatrix");
 
-
-    //glm::mat4 projectionMatrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
-
-     
-
-     while (!glfwWindowShouldClose(window))
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    while (!glfwWindowShouldClose(window))
     {        
         // input
         // -----
@@ -109,16 +116,14 @@ int main() {
         // ------
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //
+        // apply shaders
         ourShader.use();
         
         // Rotation angle defined by how far cursor is located from center of the screen
-        modelRotation.angle= sqrt(
-            pow(modelRotation.x,2) + pow(modelRotation.y, 2)
-        )*360.0f;
 
-        
+        updateRotation();
         draw3_3by3boxes(ourShader.ID, VAO, modelRotation);
+        printf("    a:%f, x:%f, y:%f \n", modelRotation.angle, modelRotation.x, modelRotation.y);
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -127,10 +132,86 @@ int main() {
     glfwTerminate();
     return 0;
 }
+
+float mod(float a, float b){
+    float c = a;
+    while(c>b){
+        c -= b;
+    }
+    return c;
+}
+
+float normalize_mouse_position(float number, int maxVal){
+    //mouseState.posX/WINDOW_WIDTH - 1;   0..1
+    return 2.0f*mouseState.posX/maxVal - 1;
+}
+MouseState lastMousePos;
+
+void updateRotation(){
+    // here origin of vector is center of screen
+    if(object_move == MOVE_ON_MOVE_OF_CURSOR){
+        
+        lastMousePos.posX =  mouseState.posX;
+        lastMousePos.posY =  mouseState.posY;
+
+        // swapped in order to make direction of cursor match rotation of the cube
+        modelRotation.y = normalize_mouse_position( mouseState.posX,WINDOW_WIDTH );
+        modelRotation.x = normalize_mouse_position( mouseState.posY,WINDOW_HEIGHT );
+        modelRotation.angle= mod(sqrt(
+            pow(modelRotation.x,2) + pow(modelRotation.y, 2)
+        )*360.0f, 360.0f);
+        return;
+    }
+    
+    // here origin of vector is start hold position
+    if(object_move == MOVE_ON_DRAG_OF_CURSOR) {
+        //printf("[f] a:%f, x:%f, y:%f \n",
+        // phantomModelRotation.angle, phantomModelRotation.x, phantomModelRotation.y);
+        if(!mouseState.is_lbm_hold) {
+            lastMousePos.posX =  mouseState.posX;
+            lastMousePos.posY =  mouseState.posY;
+            // get last position of model add to the current mouse position
+            phantomModelRotation.x = modelRotation.y + normalize_mouse_position( mouseState.posX,WINDOW_WIDTH );
+            phantomModelRotation.y = modelRotation.x + normalize_mouse_position( mouseState.posY,WINDOW_HEIGHT );
+            
+            phantomModelRotation.angle = modelRotation.angle;
+            return;
+        }
+        //printf("ph x: %f, y: %f\n", phantomModelRotation.x, phantomModelRotation.y);
+        //printf("   x: %f, y: %f\n", mouseState.posX, mouseState.posY);
+        double x,y;
+        // phantomModelRotation = last_model_pos + last_mouse_pos
+        // x = last_model_pos + last_mouse_pos - current_mouse_pos
+        // where shifted mouse pos = last_mouse_pos - current_mouse_pos
+        // x = last_pos + shifted_mouse_pos
+        x = phantomModelRotation.x - normalize_mouse_position( mouseState.posX,WINDOW_WIDTH );
+        y = phantomModelRotation.y - normalize_mouse_position( mouseState.posY,WINDOW_HEIGHT );
+        // rotation is fucked up, because the orientation is changes depending from the last state
+        if(x == 0 && y == 0)
+            return;
+        modelRotation.y = normalize_mouse_position(lastMousePos.posX - mouseState.posX,WINDOW_WIDTH );
+        modelRotation.x = normalize_mouse_position(lastMousePos.posY - mouseState.posY,WINDOW_WIDTH );
+        modelRotation.angle =mod(sqrt(
+            pow( x,2) + pow(y , 2)
+        )*360.0f, 360.0f);
+        
+        lastMousePos.posX =  mouseState.posX;
+        lastMousePos.posY =  mouseState.posY;
+        // last_model_pos = -1..1
+        // last_mouse_pos = 0..1
+    }
+}
+
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-
-
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    // note that click is single event
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        mouseState.is_lbm_hold = action == GLFW_PRESS;
+        printf("Click Changed, isPress: %i!\n",  action == GLFW_PRESS);
+    }
+}
 
 void processMouseInput(GLFWwindow *window)
 {
@@ -138,9 +219,9 @@ void processMouseInput(GLFWwindow *window)
     glfwGetCursorPos(window, &mouseX, &mouseY);
     if(mouseX < 0 || mouseY <0 || mouseX > WINDOW_WIDTH || mouseY> WINDOW_HEIGHT)
         return;
-    // swapped to match rotation axis
-    modelRotation.y = 2*mouseX/WINDOW_WIDTH - 1;
-    modelRotation.x = 2*mouseY/WINDOW_HEIGHT - 1;
+    previousMouseState = mouseState;
+    mouseState.posX = mouseX;
+    mouseState.posY = mouseY;
 }
 
 void processInput(GLFWwindow *window)
