@@ -13,6 +13,18 @@
 #define SPREAD       1.0f + PADDING
 #define CUBE_SIZE     3
 
+// no need to hold initial position
+// if and only if draw loop matches with select and init loops
+struct Side {
+    float sideIdx;
+    glm::vec3 color; // color does not change because of that we can keep its
+};
+
+struct Cube {
+    int cubeId;
+    Side side[6];
+};
+
 float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
 float sideColors[] = {
@@ -48,6 +60,15 @@ struct CubeSideId{
     int cubeID;
     int sideID;
 };
+
+struct Cube *model_arr;
+
+Cube getModel(int index){
+    return model_arr[index];
+}
+
+glm::vec3 cubeIdToPosition[26];
+
 
 int collision_isActive = 0;
 int collision_found = 0;
@@ -93,9 +114,10 @@ float intersectRayPlane(glm::vec3 planeNormal, glm::vec3 rawPlainPoint, glm::vec
         return -1.0f;
     }
     if(collision_found && minT == planeToIntersectionMagnitude){
-        printf("!!MIN!! (M:%f) (T:%f): %f, %f, %f \n", planeToIntersectionMagnitude, t, planePoint.x,planePoint.y,planePoint.z);
+       //printf("!!MIN!! (M:%f) (T:%f): %f, %f, %f \n", planeToIntersectionMagnitude, t, planePoint.x,
+        //planePoint.y,planePoint.z);
     } else{
-        printf("Intersect's with the (M:%f) (T:%f): %f, %f, %f \n", planeToIntersectionMagnitude, t, planePoint.x,planePoint.y,planePoint.z);
+        //printf("Intersect's with the (M:%f) (T:%f): %f, %f, %f \n", planeToIntersectionMagnitude, t, planePoint.x,planePoint.y,planePoint.z);
     }
     return planeToIntersectionMagnitude;
 }
@@ -177,12 +199,13 @@ void drawCubeOfRubiksCube(
     glm::mat4 model,
     glm::vec3 sideOrder ,
     glm::vec3 cubePosition,
-    int cubeId
+    int cubeId,
+    Cube cube
 ) {
     float intersectionMagnitude;
     for(int sideIndex = 0; sideIndex < 6; sideIndex++) {
         glm::vec3 sideColor = blackColor;
-        // 3,4,5 + i*24
+
         glm::vec3 normal =  glm::vec3(
             (float)vertices[sideIndex*24 + 3],
             (float)vertices[sideIndex*24 + 4],
@@ -200,7 +223,7 @@ void drawCubeOfRubiksCube(
 
         if(isOuterSide(sideIndex, sideOrder)){
             //printf("i: %i, planePoint: %f, %f, %f\n", sideIndex, planePoint.x, planePoint.y, planePoint.z);
-            sideColor = getVectorColor(sideIndex, sideOrder);
+            sideColor = cube.side[sideIndex].color;
             // int realPos = 
             if(collision_isActive){
                 intersectionMagnitude = intersectRayPlane(normal, planePoint, cubePosition);
@@ -216,7 +239,14 @@ void drawCubeOfRubiksCube(
                     else{
                         //sideColor = magnetaColor;
                     } 
-                    if(collision_found && collisionWith.cubeID == cubeId && collisionWith.sideID == sideIndex){
+                    // TODO: test differences between checking is real here and on collision setting it as real
+                    Cube realCube = getModel(cubeId);
+                    int realCubeId = realCube.cubeId;
+                    int realSideId = realCube.side[sideIndex].sideIdx;
+                    if(collision_found
+                     && collisionWith.cubeID == realCubeId 
+                     && collisionWith.sideID == sideIndex
+                     ){
                         sideColor = whiteColor;
                     }
                 }
@@ -244,17 +274,6 @@ void drawCubeOfRubiksCube(
         // Set the object color uniform
         GLuint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
         
-
-        // glm::vec3 sideColor = getVectorColor(sideIndex, sideOrder);
-        // if(collision_isActive && collision_found){
-        //     if(collisionWith.x == sideOrder.x
-        //     && collisionWith.y == sideOrder.y
-        //     && collisionWith.z == sideOrder.z
-        //     && collisionWith.w == i)
-        //     {
-        //     sideColor = whiteColor;
-        //     }
-        // }
         glUniform3f(objectColorLoc, sideColor.x, sideColor.y, sideColor.z);
 
         // Bind the VAO
@@ -269,8 +288,6 @@ void drawCubeOfRubiksCube(
     }
 }
 
-float *model_arr;
-
 void copy_from_mat_to_float(glm::mat4 mat, float* array, int shift) {
     for(int i = 0; i<4; i++){
         for(int j = 0; j<4; j++){
@@ -279,41 +296,124 @@ void copy_from_mat_to_float(glm::mat4 mat, float* array, int shift) {
     }
 }
 
-glm::mat4 getModel(int index){
-    float tmpArr[16];
-    for(int i = 0; i<16; i++){
-        tmpArr[i] = model_arr[index*16+i];
-    }
-    return glm::make_mat4(tmpArr);
-}
-
 void init3_3boxes(){
-    model_arr = (float *) malloc(sizeof(float)*26*16);
-    glm::mat4 model;
+    // TODO: needs to update after custom sized RB will be implemented
+    model_arr = (struct Cube *) malloc(sizeof(struct Cube)*26);
     int cubeSize = CUBE_SIZE;
-    float spread = SPREAD;
     int modelIdx = 0;
     for(int i = 0; i < cubeSize; i++) {
-        float z = spread * (i-1);
         for(int j = 0; j < cubeSize; j++) {
-            float y = spread * (j-1);
             for(int k = 0; k<cubeSize; k++) {
                 // skipping center cube
                 if(k==1 && k == j && j == i) continue;
+                glm::vec3 cubePosition = glm::vec3(k-1, j-1, i-1);
+                cubeIdToPosition[modelIdx] = cubePosition;
+                model_arr[modelIdx].cubeId = modelIdx;                       
+                for(int sideIndex = 0; sideIndex < 6; sideIndex++) {
+                    model_arr[modelIdx].side[sideIndex].sideIdx = sideIndex;
+                    model_arr[modelIdx].side[sideIndex].color = getVectorColor(
+                        sideIndex, 
+                        cubePosition
+                    );
+                }
+                modelIdx++;
+            }
+        }
+    }
+}
 
-                float x = spread*(k-1);
-                glm::vec3 cubePosition = glm::vec3(x, y, z);
+struct RotationConfig{
+    int active;
+    float angle; // -90.0f .. 90.0f
+    int axisIndex;
+    float axisValue;
+};
 
-                // if (k == 0)
-                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* 25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-                // else if (k == 2)
-                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* -25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-                // else
-                //     model = cleanModel;
-                //model = glm::translate(model, sidePosition);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, cubePosition);
-                copy_from_mat_to_float(model, model_arr, modelIdx);
+RotationConfig rotationConfig = {0, 0.0f, 0, 0.0f};
+
+glm::mat4 identityMat = glm::mat4(1.0f);
+glm::vec3 rotationVec = glm::vec3(0.0f);
+
+void forwardRotation(const int arr[2], int outArr[2]) {
+    int i, j;
+    i = arr[0];
+    j = arr[1];
+
+    int p = 3*i+j;
+    int nextPos = (3*p + 2)%10;
+    int nI = nextPos/3;
+    int nJ = nextPos%3;
+
+    outArr[0] = nI;
+    outArr[1] = nJ;
+}
+
+
+
+void backwardRotation(const int arr[2], int outArr[2]) {
+    forwardRotation(arr, outArr);
+    int tmpArr[2];
+    forwardRotation(outArr, tmpArr);
+    forwardRotation(tmpArr, outArr);
+    
+    // int i, j;
+    // i = arr[0];
+    // j = arr[1];
+    // int p = 3*i + j;
+    // int nextPos = (6*p + 2)%10;
+    // int nI = nextPos/3;
+    // int nJ = nextPos%3;
+
+    // outArr[0] = nI;
+    // outArr[1] = nJ;
+}
+int convertionIncr = 0;
+
+void startRotation(int axisIndex, float axisValue) {
+    if(rotationConfig.active) 
+        return;
+    
+    rotationConfig.angle = 0.0;
+    rotationConfig.active = 1;
+    rotationConfig.axisIndex = axisIndex;
+    rotationConfig.axisValue = axisValue;
+    printf("Rotation started: \n active: %d, axisIndex:%d, axisValue:%f\n", rotationConfig.active, rotationConfig.axisIndex, axisValue);
+    rotationVec[rotationConfig.axisIndex] = 0.5f;
+    convertionIncr = 0;
+}
+
+
+void rotate(glm::mat4& model, glm::vec3 cubePosition) {
+    if(!rotationConfig.active) 
+        return;
+    if(rotationConfig.angle >= 90.0f 
+    //|| rotationConfig.angle<= 90.0f
+    ){
+        return;
+    }
+    if(cubePosition[rotationConfig.axisIndex] == rotationConfig.axisValue) {
+        model = glm::rotate(
+            identityMat,
+            glm::radians(rotationConfig.angle),
+            rotationVec
+        );
+    }
+}
+
+void updateIndicies() {
+    int modelIdx = 0;
+    77uiuuii0i566
+    for(int i = 0; i < CUBE_SIZE; i++) {
+        for(int j = 0; j < CUBE_SIZE; j++) {
+            for(int k = 0; k<CUBE_SIZE; k++) {
+                // skipping center cube
+                if(k==1 && k == j && j == i) continue;
+                Cube cube = getModel(modelIdx);
+                
+                glm::vec3 cubePosition = cubeIdToPosition[cube.cubeId];
+                if(cubePosition[rotationConfig.axisIndex] == rotationConfig.axisValue) {
+                    
+                }
                 modelIdx++;
             }
         }
@@ -403,6 +503,9 @@ void draw3_3by3boxes(
         collision_found = 0;
         collision_isActive = 0;
     }
+    if(collision_found && !rotationConfig.active) {
+        startRotation(0,  [collisionWith.cubeID][0]*SPREAD);
+    }
     // TODO: cache this value
     glm::mat4 model = glm::mat4(1.0f);
     //float angle = static_cast<float>(glfwGetTime()) * 25.0f;  // Adjust the multiplier to change the rotation speed
@@ -416,36 +519,41 @@ void draw3_3by3boxes(
     float spread = SPREAD;
 
     int modelIdx = 0;
+
+    if(rotationConfig.active){
+        rotationConfig.angle += 0.01;
+        if(rotationConfig.angle >= 90.0f){
+            // update positon
+            updateIndicies();
+            rotationConfig.angle = 0.0f;
+            rotationConfig.active = 0;
+        }
+    }
+
     for(int i = 0; i < CUBE_SIZE; i++) {
-        float z = spread * (i-1);
         for(int j = 0; j < CUBE_SIZE; j++) {
-            float y = spread * (j-1);
             for(int k = 0; k<CUBE_SIZE; k++) {
                 // skipping center cube
                 if(k==1 && k == j && j == i) continue;
+                
+                Cube cube = getModel(modelIdx);
+                glm::vec3 cubePosition = cubeIdToPosition[cube.cubeId];
 
-                float x = spread*(k-1);
-                glm::vec3 cubePosition = glm::vec3(x, y, z);
+                cubePosition = spread*cubePosition;
                 
                 cleanModel = glm::mat4(1.0f);
                 
-                 if (k == 0){
-    
-                    float rotRate = 25.0f;
-                    float degree = (float)glfwGetTime()* rotRate;
-                    float rotX = 0.5f;
-                    if(degree> 90){
-                        degree = (-1)*degree;
-                        model = glm::rotate(cleanModel, glm::radians(90.0f), glm::vec3(0.5f, 0.0f, 0.0f));
-                        model = glm::rotate(model, glm::radians(degree), glm::vec3(0.0f, 0.5f, 0.0f));
-                    } else
-                        model = glm::rotate(cleanModel, glm::radians(degree), glm::vec3(rotX, 0.0f, 0.0f));
-                    //model = glm::translate(model, cubePosition);
-                 }else
-                     model = cleanModel;
+                 
+                    
+                // testing rotation
+                if(rotationConfig.active){
+                    model = cleanModel;
+                    rotate(model, cubePosition);
+                 } else
+                    model = cleanModel;
                 model = glm::translate(model, cubePosition);
                 
-                //modelIdx++;
+                modelIdx++;
                 glm::vec3 sideOrder = glm::vec3(k-1, j-1, i-1);
                 int cubeId = i+j+k;
                 drawCubeOfRubiksCube(
@@ -456,8 +564,9 @@ void draw3_3by3boxes(
                     model,
                     sideOrder,
                     cubePosition,
-                    cubeId
-                    );
+                    cubeId,
+                    cube
+                );
             }
         }
     }

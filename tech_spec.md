@@ -51,3 +51,21 @@ Plan:
 
 6. Even more extra
     - [ ] Add support of different dimention cubes
+
+
+
+### Camera Impl
+TODO: write explanation
+
+### Side Rotation Imple
+
+0. Setup initial positions.
+    cube: id, sides: [id1, id2, id3, etc..]
+1. Ray cast side selection
+2. Ray cast next movement of mouse find direction of movement, and execute rotation after reaching some delta (probably within delta time if not update start pos?)
+3. Find maching axis with the "swipe direction", find all cube that match with this value of axis. Rotated by that axis from current_angle to current_angle +- 90.
+    a. While rotation is active block user interactions (maybe we can leave camera movement)
+4. After rotation update positions.
+    so it would look like: cube: id-> new_id, side: [id1 -> new_id2, id2 -> new_id2]
+    a. need to calculate new ids somehow (TODO: find how to)
+
