@@ -103,6 +103,9 @@ int main() {
     GLuint modelViewLocation = glGetUniformLocation(ourShader.ID, "modelViewMatrix");
     GLuint viewLocation = glGetUniformLocation(ourShader.ID, "viewMatrix");
 
+
+    //initiallizing cube
+    init3_3boxes();
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     while (!glfwWindowShouldClose(window))
     {        

@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include "vertices.h"
 
+
+#define PADDING      0.01f
+#define SPREAD       1.0f + PADDING
+#define CUBE_SIZE     3
+
 float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
 float sideColors[] = {
@@ -264,6 +269,56 @@ void drawCubeOfRubiksCube(
     }
 }
 
+float *model_arr;
+
+void copy_from_mat_to_float(glm::mat4 mat, float* array, int shift) {
+    for(int i = 0; i<4; i++){
+        for(int j = 0; j<4; j++){
+            array[shift*16+i*4+j] = (float) mat[i][j];
+        }
+    }
+}
+
+glm::mat4 getModel(int index){
+    float tmpArr[16];
+    for(int i = 0; i<16; i++){
+        tmpArr[i] = model_arr[index*16+i];
+    }
+    return glm::make_mat4(tmpArr);
+}
+
+void init3_3boxes(){
+    model_arr = (float *) malloc(sizeof(float)*26*16);
+    glm::mat4 model;
+    int cubeSize = CUBE_SIZE;
+    float spread = SPREAD;
+    int modelIdx = 0;
+    for(int i = 0; i < cubeSize; i++) {
+        float z = spread * (i-1);
+        for(int j = 0; j < cubeSize; j++) {
+            float y = spread * (j-1);
+            for(int k = 0; k<cubeSize; k++) {
+                // skipping center cube
+                if(k==1 && k == j && j == i) continue;
+
+                float x = spread*(k-1);
+                glm::vec3 cubePosition = glm::vec3(x, y, z);
+
+                // if (k == 0)
+                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* 25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+                // else if (k == 2)
+                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* -25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+                // else
+                //     model = cleanModel;
+                //model = glm::translate(model, sidePosition);
+                model = glm::mat4(1.0f);
+                model = glm::translate(model, cubePosition);
+                copy_from_mat_to_float(model, model_arr, modelIdx);
+                modelIdx++;
+            }
+        }
+    }
+}
 
 void draw3_3by3boxes(
     unsigned int shaderProgram,
@@ -348,7 +403,7 @@ void draw3_3by3boxes(
         collision_found = 0;
         collision_isActive = 0;
     }
-
+    // TODO: cache this value
     glm::mat4 model = glm::mat4(1.0f);
     //float angle = static_cast<float>(glfwGetTime()) * 25.0f;  // Adjust the multiplier to change the rotation speed
     //float angle = 0.0f;
@@ -358,29 +413,39 @@ void draw3_3by3boxes(
    
     // Calculate the rotation angle based on time
     // Create the model matrix with rotation
+    float spread = SPREAD;
 
-    float padding = 0.01f;
-    float spread = 1.0f + padding;
-    float cubeSize = 3;
-    for(int i = 0; i < cubeSize; i++) {
+    int modelIdx = 0;
+    for(int i = 0; i < CUBE_SIZE; i++) {
         float z = spread * (i-1);
-        for(int j = 0; j < cubeSize; j++) {
+        for(int j = 0; j < CUBE_SIZE; j++) {
             float y = spread * (j-1);
-            for(int k = 0; k<cubeSize; k++) {
+            for(int k = 0; k<CUBE_SIZE; k++) {
                 // skipping center cube
                 if(k==1 && k == j && j == i) continue;
 
                 float x = spread*(k-1);
                 glm::vec3 cubePosition = glm::vec3(x, y, z);
-                // if (k == 0)
-                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* 25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-                // else if (k == 2)
-                //     model = glm::rotate(cleanModel, glm::radians((float)(glfwGetTime()* -25.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-                // else
-                //     model = cleanModel;
-                //model = glm::translate(model, sidePosition);
-                model = glm::translate(cleanModel, cubePosition);
-
+                
+                cleanModel = glm::mat4(1.0f);
+                
+                 if (k == 0){
+    
+                    float rotRate = 25.0f;
+                    float degree = (float)glfwGetTime()* rotRate;
+                    float rotX = 0.5f;
+                    if(degree> 90){
+                        degree = (-1)*degree;
+                        model = glm::rotate(cleanModel, glm::radians(90.0f), glm::vec3(0.5f, 0.0f, 0.0f));
+                        model = glm::rotate(model, glm::radians(degree), glm::vec3(0.0f, 0.5f, 0.0f));
+                    } else
+                        model = glm::rotate(cleanModel, glm::radians(degree), glm::vec3(rotX, 0.0f, 0.0f));
+                    //model = glm::translate(model, cubePosition);
+                 }else
+                     model = cleanModel;
+                model = glm::translate(model, cubePosition);
+                
+                //modelIdx++;
                 glm::vec3 sideOrder = glm::vec3(k-1, j-1, i-1);
                 int cubeId = i+j+k;
                 drawCubeOfRubiksCube(
