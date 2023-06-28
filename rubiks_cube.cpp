@@ -106,6 +106,7 @@ int main() {
 
     //initiallizing cube
     init3_3boxes();
+    
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     while (!glfwWindowShouldClose(window))
     {        
