@@ -2,10 +2,10 @@
 #include "draw.h"
 
 void testMatrixIndexRotation();
-
+void testSideRotation();
 // test
 int main() {
-    testMatrixIndexRotation();
+    testSideRotation();
 }
 
 void printMat(float mat[]){
@@ -47,7 +47,7 @@ void testMatrixIndexRotation(){
     }
     printMat(testMatrix);
 
-    
+
     for(int i = 0; i<2; i++){
         inArr[0] = (i)/3;
         inArr[1] = i%3;
@@ -64,5 +64,25 @@ void testMatrixIndexRotation(){
         }
     }
     printMat(testMatrix);
+
+}
+
+
+
+void testSideRotation(){
+    Side side[6];
+    printf("\n Before \n");
+    for(int i=0; i<6;i++){
+        side[i] = Side{ i, blackColor };
+        printf("%d, ", i);
+    }
+    printf("\n After \n");
+
+    rotateSideIdx(0, 1, side);
+    for(int i=0; i<6;i++){
+        printf("%d, ", side[i].sideIdx);
+    }
+    printf("\n");
+    
 
 }
