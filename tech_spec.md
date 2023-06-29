@@ -67,5 +67,9 @@ TODO: write explanation
     a. While rotation is active block user interactions (maybe we can leave camera movement)
 4. After rotation update positions.
     so it would look like: cube: id-> new_id, side: [id1 -> new_id2, id2 -> new_id2]
-    a. need to calculate new ids somehow (TODO: find how to)
+    a. find id's that will be rotated. (Find positions that matched clicked items coordinates at N that where N is value of M coordinates. M - axis of rotation)
+        1. And rotate side idx (and colors) before full matrix rotation
+    b. Generate 3x3 matrix containing this ids and rotate them by +-90
+    c. Update indices matrix with rotated one
+        
 
