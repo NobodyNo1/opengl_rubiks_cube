@@ -59,10 +59,11 @@ glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::mat4 defaultView = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
 glm::mat4 lastView = defaultView;
 
-struct CubeSideId
+struct SelectedCubeSide
 {
-    int cubeID;
-    int sideID;
+    Cube cube;
+    int selectedSideId;
+    int modelIdx;
 };
 
 struct Cube model_arr[27];
@@ -76,8 +77,16 @@ int collision_found = 0;
 glm::vec3 rayOrigin;
 glm::vec3 rayDirection;
 
-CubeSideId collisionWith = {-1, -1};
+SelectedCubeSide collisionWith;
 float minT = 100000.0;
+
+float mod(float a, float b){
+    float c = a;
+    while(c>b){
+        c -= b;
+    }
+    return c;
+}
 
 // Perform ray-plane intersection test
 float intersectRayPlane(glm::vec3 planeNormal, glm::vec3 rawPlainPoint,
@@ -238,6 +247,8 @@ void drawCubeOfRubiksCube(unsigned int shaderProgram, GLuint VAO,
             {
                 intersectionMagnitude =
                     intersectRayPlane(normal, planePoint, cubePosition);
+                    // intersectRayPlane(normal, planePoint, cubeIdToPosition[getModel(cubeId).cubeId]);
+                    
                 if (intersectionMagnitude != -1.0f)
                 {
                     // TODO: collision is not 100% accurate
@@ -246,8 +257,9 @@ void drawCubeOfRubiksCube(unsigned int shaderProgram, GLuint VAO,
                         if (minT > intersectionMagnitude)
                         {
                             minT = min(minT, intersectionMagnitude);
-                            collisionWith.cubeID = curCube.cubeId;
-                            collisionWith.sideID = sideIndex;
+                            collisionWith.cube = curCube;
+                            collisionWith.selectedSideId = sideIndex;
+                            collisionWith.modelIdx = cubeId;
                         }
                     }
                     else
@@ -256,10 +268,8 @@ void drawCubeOfRubiksCube(unsigned int shaderProgram, GLuint VAO,
                     }
                     // TODO: test differences between checking is real here and
                     // on collision setting it as real
-                    int realCubeId = curCube.cubeId;
-                    int realSideId = curCube.side[sideIndex].sideIdx;
-                    if (collision_found && collisionWith.cubeID == realCubeId
-                        //  && collisionWith.sideID == sideIndex
+                    if (collision_found && collisionWith.modelIdx == cubeId
+                         && collisionWith.selectedSideId == sideIndex
                     )
                     {
                         sideColor = whiteColor;
@@ -357,9 +367,11 @@ struct RotationConfig
     float angle;   // -90.0f .. 90.0f
     int axisIndex;
     int axisValue;
+    float startRotationTime;
+    int isClockWise;
 };
 
-RotationConfig rotationConfig = {0, 0.0f, 0, 0};
+RotationConfig rotationConfig = {0, 0.0f, 0, 0, 0.0f, 0};
 
 glm::mat4 identityMat = glm::mat4(1.0f);
 glm::vec3 rotationVec = glm::vec3(0.0f);
@@ -425,18 +437,21 @@ void bulkRotation(int is_forward, Cube modelIdxes[])
 }
 int convertionIncr = 0;
 
-void startRotation(int axisIndex, float axisValue)
+void startRotation(int axisIndex, float axisValue, int isClockWise)
 {
     if (rotationConfig.active)
         return;
 
+
+    rotationConfig.startRotationTime = glfwGetTime();
     rotationConfig.angle = 0.0;
     rotationConfig.active = 1;
     rotationConfig.axisIndex = axisIndex;
     rotationConfig.axisValue = axisValue;
+    rotationConfig.isClockWise = isClockWise;
     printf("Rotation started: \n active: %d, axisIndex:%d, axisValue:%f\n",
            rotationConfig.active, rotationConfig.axisIndex, axisValue);
-    rotationVec[rotationConfig.axisIndex] = 0.5f;
+    rotationVec[axisIndex] = 0.5f;
     convertionIncr = 0;
 }
 
@@ -450,8 +465,21 @@ void rotateObject(glm::mat4& model, glm::vec3 cubePosition)
     {
         return;
     }
-    if (cubePosition[rotationConfig.axisIndex] == rotationConfig.axisValue)
+    // k-1, j-1, i-1
+    // axis: x:0, y:1, z:2
+    // 2->0
+    // 1->1
+    // 0 -> 2
+    // 0 1 2
+    // 2 0 1
+    int posToUpdate = (int)cubePosition[rotationConfig.axisIndex];
+    if (posToUpdate == rotationConfig.axisValue)
     {
+        if(convertionIncr<9) {
+            printf("~~~~~ found items: z:%f, y:%f, x:%f\n", cubePosition.x, cubePosition.y, cubePosition.z);
+            //printf("~~~~~ found items: x:%f, y:%f, z:%f\n", cubePosition.x, cubePosition.y, cubePosition.z);
+            convertionIncr++;
+        }
         model = glm::rotate(identityMat, glm::radians(rotationConfig.angle),
                             rotationVec);
     }
@@ -494,6 +522,7 @@ int getModelIdxByFixedAxis(int axisValue, int fixedAxis, int p, int q)
 void rotateSideIdx(int axis, int isClockwise, Side* side)
 {
     /*
+    clockWise
         by x -> (top -> front -> bot -> back)
         1 => 5
         5 => 0
@@ -501,15 +530,22 @@ void rotateSideIdx(int axis, int isClockwise, Side* side)
         4 => 1
     */
     int rotateByX[6];
-    rotateByX[5] = 1;
-    rotateByX[0] = 5;
-    rotateByX[4] = 0;
-    rotateByX[1] = 4;
-
+    if(isClockwise){
+        rotateByX[5] = 1;
+        rotateByX[0] = 5;
+        rotateByX[4] = 0;
+        rotateByX[1] = 4;
+    } else{
+        rotateByX[1] = 5;
+        rotateByX[5] = 0;
+        rotateByX[0] = 4;
+        rotateByX[4] = 1;
+    }
+    
     rotateByX[2] = 2;
     rotateByX[3] = 3;
-
     /*
+    clockWise
         by y -> (left -> front -> right-> back)
         2 => 5
         5 => 3
@@ -517,14 +553,21 @@ void rotateSideIdx(int axis, int isClockwise, Side* side)
         4 => 2
     */
     int rotateByY[6];
-    rotateByY[2] = 5;
-    rotateByY[5] = 3;
-    rotateByY[3] = 4;
-    rotateByY[4] = 2;
-
+    if(isClockwise){
+        rotateByY[5] =2;
+        rotateByY[3] =5;
+        rotateByY[4] =3;
+        rotateByY[2] =4;
+    } else{
+        rotateByY[2] = 5;
+        rotateByY[5] = 3;
+        rotateByY[3] = 4;
+        rotateByY[4] = 2;
+    }
     rotateByY[1] = 1;
     rotateByY[0] = 0;
     /*
+    clockWise
         by z -> (left-> top-> right -> bot)
         2 => 1
         1 => 3
@@ -532,11 +575,17 @@ void rotateSideIdx(int axis, int isClockwise, Side* side)
         0 => 3
     */
     int rotateByZ[6];
-    rotateByZ[2] = 1;
-    rotateByZ[1] = 3;
-    rotateByZ[3] = 0;
-    rotateByZ[0] = 2;
-
+    if(isClockwise){
+        rotateByZ[2] = 1;
+        rotateByZ[1] = 3;
+        rotateByZ[3] = 0;
+        rotateByZ[0] = 2;
+    } else {
+        rotateByZ[1] = 2;
+        rotateByZ[3] = 1;
+        rotateByZ[0] = 3;
+        rotateByZ[2] = 0;
+    }
     rotateByZ[5] = 5;
     rotateByZ[4] = 4;
 
@@ -560,13 +609,11 @@ void rotateSideIdx(int axis, int isClockwise, Side* side)
         updateTo[sideIndex].color = curSide.color;
         updateTo[sideIndex].sideIdx = curSide.sideIdx;
     }
-    printf("Update 0 side to: id:%d\n", updateTo[0].sideIdx);
 
     for (int sideIndex = 0; sideIndex < 6; sideIndex++)
     {   // need to rotate sides
         side[sideIndex] = updateTo[sideIndex];
     }
-    printf("Result: id:%d\n", side[0].sideIdx);
 }
 
 void updateIndicies()
@@ -587,7 +634,7 @@ void updateIndicies()
             Cube cube = getModel(modelIdx);
             // getting position of the real cube
             glm::vec3 pos = cubeIdToPosition[cube.cubeId];
-            printf("%f, %f, %f \n", pos.x, pos.y, pos.z);
+           // printf("%f, %f, %f \n", pos.x, pos.y, pos.z);
 
             // collecting
             modelIdxes[3 * p + q].cubeId = cube.cubeId;
@@ -599,13 +646,17 @@ void updateIndicies()
                 modelIdxes[3 * p + q].side[sideIndex].sideIdx =
                     cube.side[sideIndex].sideIdx;
             }
-            rotateSideIdx(rotationConfig.axisIndex, 1,
+            rotateSideIdx(rotationConfig.axisIndex, rotationConfig.isClockWise,
                           modelIdxes[3 * p + q].side);
         }
     }
     // Rotating the matrix, in other words setting current values to values they
     // need to be
-    bulkRotation(1, modelIdxes);
+    // for y rotation it should be reversed
+    if(rotationConfig.axisIndex == 1)
+        bulkRotation(!rotationConfig.isClockWise, modelIdxes);
+     else
+        bulkRotation(rotationConfig.isClockWise, modelIdxes);
     for (int p = 0; p < CUBE_SIZE; p++)
     {
         for (int q = 0; q < CUBE_SIZE; q++)
@@ -729,7 +780,8 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO,
     }
     else
     {
-        collisionWith = {-1, -1};
+        // needs to cleared
+        collisionWith;
         minT = 100000;
         collision_found = 0;
         collision_isActive = 0;
@@ -737,9 +789,51 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO,
     if (collision_found && !rotationConfig.active)
     {
         // TODO: write implementation
+        
         // FOR TEST ONLY
-        float clickedXPos = cubeIdToPosition[collisionWith.cubeID][0];
-        startRotation(0, clickedXPos);
+        // take clicked side 
+        // if front, back -> x
+        // if left, right -> y
+        // if top, bottom -> x
+        int rotBy = 0;
+        // if(collisionWith.selectedSideId == leftIdx || collisionWith.selectedSideId  == rightIdx){
+        //     rotBy = 2;
+        // }
+        if(collisionWith.selectedSideId == leftIdx || collisionWith.selectedSideId  == rightIdx){
+            printf("    raw value is:left/right\n");
+        } else if(collisionWith.selectedSideId == topIdx || collisionWith.selectedSideId  == bottomIdx){
+            printf("    raw value is:top/bottom\n");
+        } else{
+            printf("    raw value is:front/back\n");
+        }
+        if(collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == leftIdx || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx  == rightIdx){
+            printf("    actual value is:left/right\n");
+        } else if(collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == topIdx || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx  == bottomIdx){
+            printf("    actual value is:top/bottom\n");
+        } else{
+            printf("    actual value is:front/back\n");
+        }
+        if(
+            collisionWith.selectedSideId == leftIdx || collisionWith.selectedSideId  == rightIdx
+            // collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == leftIdx 
+            // || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == rightIdx
+        ){
+            rotBy = 2;
+        } else if( collisionWith.selectedSideId == frontIdx || collisionWith.selectedSideId  == backIdx){
+            rotBy = 0;
+        } else{
+            rotBy = 1;
+        }
+        float clickedXPos = cubeIdToPosition[collisionWith.modelIdx][rotBy];
+        printf(
+            "           rotAxis: %d, X:%f, Y:%f, Z:%f\n",
+            rotBy,
+            cubeIdToPosition[collisionWith.modelIdx].x,
+            cubeIdToPosition[collisionWith.modelIdx].y,
+            cubeIdToPosition[collisionWith.modelIdx].z
+        );
+        printf("        AXIS_VALUE: %f \n", clickedXPos);
+        startRotation(rotBy, clickedXPos, 1);
     }
     // TODO: cache this value
     glm::mat4 model = glm::mat4(1.0f);
@@ -757,11 +851,13 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO,
 
     if (rotationConfig.active)
     {
-        rotationConfig.angle += 1;
+        rotationConfig.angle =  (glfwGetTime()-rotationConfig.startRotationTime)* 200.0f;
         if (rotationConfig.angle >= 90.0f)
         {
             // update positon
             updateIndicies();
+            
+            rotationVec = {0.0f , 0.0f, 0.0f};
             rotationConfig.angle = 0.0f;
             rotationConfig.active = 0;
         }
@@ -789,12 +885,13 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO,
                 if (rotationConfig.active)
                 {
                     model = cleanModel;
-                    rotateObject(model, sideOrder);
+                    rotateObject(model, sideOrder); //cubeIdToPosition[getModel(modelIdx).cubeId]);
+                    model = glm::translate(model, cubePosition);
                 }
-                else
+                else{
                     model = cleanModel;
-                model = glm::translate(model, cubePosition);
-
+                    model = glm::translate(model, cubePosition);
+                }
                 drawCubeOfRubiksCube(shaderProgram, VAO, projection, view,
                                      model, sideOrder, cubePosition, modelIdx);
             }
