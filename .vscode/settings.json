@@ -53,6 +53,7 @@
         "xtr1common": "cpp",
         "xutility": "cpp",
         "__bit_reference": "cpp",
-        "bit": "cpp"
+        "bit": "cpp",
+        "complex": "cpp"
     }
 }
