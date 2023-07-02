@@ -333,18 +333,24 @@ void handleCameraPosition(
     {
         if (isRotationIsNotEmpty)
         {
+
             glm::vec3 cameraDirection =
                 glm::normalize(cameraPosition - cameraTarget);
             glm::vec3 cameraRight =
                 glm::normalize(glm::cross(cameraUp, cameraDirection));
             glm::vec3 cameraUpAdjusted =
                 glm::cross(cameraDirection, cameraRight);
+
+            // for testing
+            float curyaw = glm::degrees(atan2(cameraDirection.x, cameraDirection.z));
+            printf("yaw: %f\n", curyaw);
+
             // START GENERATED CODE
             float yaw = 0.0f;     // Horizontal rotation
             float pitch = 0.0f;   // Vertical rotation
 
-            printf("cameraPositionState: %f, %f \n", cameraPositionState.x,
-                   cameraPositionState.y);
+            // printf("cameraPositionState: %f, %f \n", cameraPositionState.x,
+                //    cameraPositionState.y);
             yaw += cameraPositionState.x;
             pitch += cameraPositionState.y;
 
@@ -367,6 +373,7 @@ void handleCameraPosition(
             cameraRight = glm::normalize(glm::cross(cameraUp, cameraDirection));
             cameraUpAdjusted = glm::cross(cameraDirection, cameraRight);
 
+            // viewMatrix = glm::lookAt(cameraPosition, cameraTarget, cameraUpAdjusted);
             viewMatrix = glm::lookAt(cameraPosition, cameraTarget, cameraUp);
 
             // END OF GENERATED CODE
@@ -411,6 +418,8 @@ void handleSelection(){
         SelectedCubeSide foundMinInfo;
         int intersectionFound = findIntersection(&minimalIntersectionMagnitude, &foundMinInfo);
         if(intersectionFound) {
+            dragAction.startX = dragAction.x;
+            dragAction.startY = dragAction.y;
             collisionWith = foundMinInfo;
             // collisionWith.cube = curCube;
             // collisionWith.selectedSideId = sideIndex;
@@ -431,7 +440,29 @@ void handleSelection(){
     if (collision_found && !rotationConfig.active)
     {
         // TODO: write implementation
-        
+        printf("Drag start (%f, %f), cur (%f, %f)\n", dragAction.startX , dragAction.startY , dragAction.x , dragAction.y); 
+        float delta = 7.0f;
+        float length = sqrt(pow(dragAction.startX - dragAction.x, 2) + pow(dragAction.startY - dragAction.y, 2));
+        // if( abs(dragAction.startX - dragAction.x) < delta|| abs(dragAction.startY - dragAction.y) < delta) {
+        //     return;
+        // } 
+        float xDiff = abs(dragAction.startX - dragAction.x);
+        float yDiff = abs(dragAction.startY - dragAction.y);
+        int rotAxis = 0;
+        int isClockWise = 1;
+        if(length < delta){
+            return;
+        } else {
+            if(xDiff < yDiff){
+                rotAxis = 0;
+                isClockWise =  dragAction.y - dragAction.startY > 0;
+            }
+            else{
+                rotAxis = 1;
+                isClockWise =  dragAction.x - dragAction.startX > 0;
+            }
+        }
+        printf("Exceed delta !\n");
         // FOR TEST ONLY
         // take clicked side 
         // if front, back -> x
@@ -442,40 +473,56 @@ void handleSelection(){
         //     rotBy = 2;
         // }
         if(collisionWith.selectedSideId == LEFT_IDX || collisionWith.selectedSideId  == RIGHT_IDX){
-            printf("    raw value is:left/right\n");
+            //printf("    raw value is:left/right\n");
         } else if(collisionWith.selectedSideId == TOP_IDX || collisionWith.selectedSideId  == BOTTOM_IDX){
-            printf("    raw value is:top/bottom\n");
+            //printf("    raw value is:top/bottom\n");
         } else{
-            printf("    raw value is:front/back\n");
+            //printf("    raw value is:front/back\n");
         }
         if(collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == LEFT_IDX || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx  == RIGHT_IDX){
-            printf("    actual value is:left/right\n");
+            //printf("    actual value is:left/right\n");
         } else if(collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == TOP_IDX || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx  == BOTTOM_IDX){
-            printf("    actual value is:top/bottom\n");
+            //printf("    actual value is:top/bottom\n");
         } else{
-            printf("    actual value is:front/back\n");
+            //printf("    actual value is:front/back\n");
         }
         if(
             collisionWith.selectedSideId == LEFT_IDX || collisionWith.selectedSideId  == RIGHT_IDX
             // collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == leftIdx 
             // || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == rightIdx
         ){
-            rotBy = 2;
+            if(rotAxis == 0){
+                rotBy = 2;
+            } else{
+                rotBy = 1;
+            }
+            if(collisionWith.selectedSideId  == RIGHT_IDX)
+                isClockWise = !isClockWise;
         } else if( collisionWith.selectedSideId == FRONT_IDX || collisionWith.selectedSideId  == BACK_IDX){
-            rotBy = 0;
-        } else{
+            // front: x,y -> x,y
+            // left: x,y -> z,y
+            // top (depends on the orientation): x,y -> x,z or z, x
+            rotBy = rotAxis;
+            if(collisionWith.selectedSideId  == BACK_IDX)
+                isClockWise = !isClockWise;
+        } else if(collisionWith.selectedSideId == TOP_IDX || collisionWith.selectedSideId  == BOTTOM_IDX){
+            glm::vec3 cameraDirection = glm::normalize(cameraTarget - cameraPosition);
+            float yaw = glm::degrees(atan2(cameraDirection.x, cameraDirection.z));
+            printf("yaw: %f, pitch:%f\n", yaw);
             rotBy = 1;
+           // TODO: define view angle
+            //rotBy = 1;
         }
         float clickedXPos = cubeIdToPosition[collisionWith.modelIdx][rotBy];
-        printf(
-            "           rotAxis: %d, X:%f, Y:%f, Z:%f\n",
-            rotBy,
-            cubeIdToPosition[collisionWith.modelIdx].x,
-            cubeIdToPosition[collisionWith.modelIdx].y,
-            cubeIdToPosition[collisionWith.modelIdx].z
-        );
-        printf("        AXIS_VALUE: %f \n", clickedXPos);
-        startRotation(rotBy, clickedXPos, 1);
+        //printf(
+        //     "           rotAxis: %d, X:%f, Y:%f, Z:%f\n",
+        //     rotBy,
+        //     cubeIdToPosition[collisionWith.modelIdx].x,
+        //     cubeIdToPosition[collisionWith.modelIdx].y,
+        //     cubeIdToPosition[collisionWith.modelIdx].z
+        // );
+        //printf("        AXIS_VALUE: %f \n", clickedXPos);
+        startRotation(rotBy, clickedXPos, isClockWise);
     }
     
 }
@@ -552,8 +599,12 @@ void draw3_3by3boxes(unsigned int shaderProgram, GLuint VAO,
 void handleSideRotation() {
     if (rotationConfig.active)
     {
-        rotationConfig.angle =  (glfwGetTime()-rotationConfig.startRotationTime)* 200.0f;
-        if (rotationConfig.angle >= 90.0f)
+        int direction = 1;
+        if(!rotationConfig.isClockWise){
+            direction = -1;
+        }
+        rotationConfig.angle =  direction*(glfwGetTime()-rotationConfig.startRotationTime)* 200.0f;
+        if (abs(rotationConfig.angle) >= 90.0f)
         {
             // update positon
             updateIndicies();
