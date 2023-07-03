@@ -97,6 +97,9 @@ int start() {
 
     //initiallizing cube
     init3_3boxes();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     while (!glfwWindowShouldClose(window))

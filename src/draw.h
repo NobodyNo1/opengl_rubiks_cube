@@ -15,6 +15,11 @@
 #define PADDING 0.01f
 #define SPREAD 1.0f + PADDING
 
+// for dev testing
+#define TRANSPARENCY 0
+#define FIX_COLOR_CUBE 0
+#define FIXED_COLORED_CUBE_ID 25
+
 float aspectRatio = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
 glm::vec3 cameraPosition  = glm::vec3(0.0f, 0.0f, 9.0f);
@@ -38,14 +43,75 @@ glm::vec3 rayDirection;
 
 SelectedCubeSide collisionWith;
 
+int isVisibleForView(int sideIdx, glm::vec3 cubePosition) {
+    glm::vec3 cameraDirection =
+        glm::normalize(cameraPosition - cameraTarget);
+    glm::vec3 cameraRight =
+        glm::normalize(glm::cross(cameraUp, cameraDirection));
+    glm::vec3 cameraUpAdjusted =
+        glm::cross(cameraDirection, cameraRight);
+
+    // for testing
+    float curyaw = glm::degrees(atan2(cameraDirection.x, cameraDirection.z));
+    float pitch = asin(cameraDirection.y);
+
+    int x, y, z;
+    x = cubePosition.x;
+    y = cubePosition.y;
+    z = cubePosition.z;
+
+    int frontCheck  =    sideIdx  == FRONT_IDX   &&   z ==  1;
+   
+    int backCheck   =    sideIdx  == BACK_IDX    &&   z == -1;
+    int topCheck    =    sideIdx  == TOP_IDX     &&   y ==  1;
+    int bottomCheck =    sideIdx  == BOTTOM_IDX  &&   y == -1;
+    int rightCheck  =    sideIdx  == RIGHT_IDX   &&   x ==  1;
+    int leftCheck   =    sideIdx  == LEFT_IDX    &&   x == -1;
+    
+    // 0    90 180 -90 0
+    if(curyaw < 0){
+        curyaw = 360+curyaw;
+    }
+
+    float minYaw =0;
+    float maxYaw = 180;
+    float shift = 0;
+    if(frontCheck){
+        if(270 <= curyaw && curyaw<= 360)
+            return 1;
+        if(0 <= curyaw && curyaw<= 90)
+            return 1;
+    } else if(rightCheck){
+        minYaw = 0;
+        maxYaw = 180;
+    } else if(backCheck){
+        minYaw = 90;
+        maxYaw = 270;
+    } else if(leftCheck){
+        minYaw = 180;
+        maxYaw = 360;
+    }
+    if(rightCheck || leftCheck || backCheck){
+        return minYaw <= curyaw && curyaw<= maxYaw;
+    }
+    if(topCheck && pitch > 0)
+        return 1;
+    if(bottomCheck && pitch < 0)
+        return 1;
+    // front = yaw (-90, 90)
+    // right = yaw (0, +-180)
+    // back = yaw (90, -90)
+    // left = (+-180 , 0)
+    return 0;
+}
 
 // Perform ray-plane intersection test
 float intersectRayPlane(glm::vec3 planeNormal, glm::vec3 rawPlainPoint,
-                        glm::vec3 cubePosition)
+                        glm::vec3 cubePositionWithSpread)
 {
     // TODO: shift plane depending on position (currently center of cube is
     // send)
-    glm::vec3 planePoint = rawPlainPoint + cubePosition;
+    glm::vec3 planePoint = rawPlainPoint + cubePositionWithSpread;
     float planeSize = 1.0f;
     float epsilon = 0.0001f;
 
@@ -109,39 +175,27 @@ void findIntersectionForCube(
 
         Cube curCube = getModel(cubeId);
 
-        // in order to test model rotation
-        // getModel(25).cubeId
-        if (curCube.cubeId == 25)
-            sideColor = whiteColor;
-        if (!isOuterSide(sideIndex, cubePosition))
-         continue;
-            // printf("i: %i, planePoint: %f, %f, %f\n", sideIndex,
-            // planePoint.x, planePoint.y, planePoint.z);
-            if (curCube.cubeId != 25)
-            {
-                sideColor = curCube.side[sideIndex].color;
-                // sideColor =
-                // curCube.side[curCube.side[sideIndex].sideIdx].color;
-            }
+        if (!isOuterSide(sideIndex, cubePosition) || !isVisibleForView(sideIndex, cubePosition))
+            continue;
         
-            float intersectionMagnitude =
-                intersectRayPlane(normal, planePoint, cubePositionWithSpread);
-                // intersectRayPlane(normal, planePoint, cubeIdToPosition[getModel(cubeId).cubeId]);
-                
-            if (intersectionMagnitude != -1.0f)
+        float intersectionMagnitude =
+            intersectRayPlane(normal, planePoint, cubePositionWithSpread);
+            // intersectRayPlane(normal, planePoint, cubeIdToPosition[getModel(cubeId).cubeId]);
+        printf("x:%f, y:%f, z:%f | M:%f\n", cubePosition.x, cubePosition.y, cubePosition.z, intersectionMagnitude);
+        if (intersectionMagnitude != -1.0f)
+        {
+            
+            if (*minimalIntersectionMagnitude > intersectionMagnitude)
             {
-                
-                if (*minimalIntersectionMagnitude > intersectionMagnitude)
-                {
-                    *minimalIntersectionMagnitude = min(
-                        *minimalIntersectionMagnitude,
-                        intersectionMagnitude
-                    );
-                    foundMinInfo->cube = curCube;
-                    foundMinInfo->selectedSideId = sideIndex;
-                    foundMinInfo->modelIdx = cubeId;
-                }
+                *minimalIntersectionMagnitude = min(
+                    *minimalIntersectionMagnitude,
+                    intersectionMagnitude
+                );
+                foundMinInfo->cube = curCube;
+                foundMinInfo->selectedSideId = sideIndex;
+                foundMinInfo->modelIdx = cubeId;
             }
+        }
     }
 }
 
@@ -189,37 +243,27 @@ void drawCubeOfRubiksCube(unsigned int shaderProgram, GLuint VAO,
                           glm::vec3 cubePosition, glm::vec3 cubePositionWithSpread,
                           int cubeId)
 {
-    float intersectionMagnitude;
     for (int sideIndex = 0; sideIndex < 6; sideIndex++)
     {
         glm::vec3 sideColor = blackColor;
-
-        // glm::vec3 normal = glm::vec3((float)vertices[sideIndex * 24 + 3],
-        //                              (float)vertices[sideIndex * 24 + 4],
-        //                              (float)vertices[sideIndex * 24 + 5]);
-        // glm::vec3 planePoint = glm::vec3(0.0f, 0.0f, 0.0f);
-        // for (int j = 0; j < 4; j++)
-        // {
-        //     planePoint.x += (float)vertices[sideIndex * 24 + (j)*6 + 0];
-        //     planePoint.y += (float)vertices[sideIndex * 24 + (j)*6 + 1];
-        //     planePoint.z += (float)vertices[sideIndex * 24 + (j)*6 + 2];
-        // }
-        // planePoint.x /= 4;
-        // planePoint.y /= 4;
-        // planePoint.z /= 4;
 
         Cube curCube = getModel(cubeId);
 
         // in order to test model rotation
         // getModel(25).cubeId
+#if FIX_COLOR_CUBE
         if (curCube.cubeId == 25)
             sideColor = magnetaColor;
+#endif
         if (isOuterSide(sideIndex, cubePosition))
         {
+#if FIX_COLOR_CUBE
             if (curCube.cubeId != 25)
-            {
                 sideColor = curCube.side[sideIndex].color;
-            }
+#else
+            sideColor = curCube.side[sideIndex].color;
+#endif
+           
             if (collision_found && collisionWith.modelIdx == cubeId
                     && collisionWith.selectedSideId == sideIndex
             )
@@ -252,6 +296,29 @@ void drawCubeOfRubiksCube(unsigned int shaderProgram, GLuint VAO,
         // Set the object color uniform
         GLuint objectColorLoc =
             glGetUniformLocation(shaderProgram, "objectColor");
+
+        GLuint alphaValLoc =
+            glGetUniformLocation(shaderProgram, "alphaVal");
+        float alphaVal =  1.0f;
+#if TRANSPARENCY
+        if(isOuterSide(sideIndex, cubePosition) && isVisibleForView(sideIndex, cubePosition)){
+            alphaVal = 0.2f;
+        } else
+            alphaVal = 0.0f;
+        if(collision_found){
+             if(collisionWith.modelIdx == cubeId
+                    && collisionWith.selectedSideId == sideIndex)
+            {
+                alphaVal = 1.0f;
+            } else{
+                if(isOuterSide(sideIndex, cubePosition)){
+                    alphaVal = 0.2f;
+                } else
+                    alphaVal = 0.0f;
+            }
+        }
+#endif
+        glUniform1f(alphaValLoc, alphaVal);
 
         glUniform3f(objectColorLoc, sideColor.x, sideColor.y, sideColor.z);
 
@@ -343,7 +410,10 @@ void handleCameraPosition(
 
             // for testing
             float curyaw = glm::degrees(atan2(cameraDirection.x, cameraDirection.z));
-            printf("yaw: %f\n", curyaw);
+            float curpitch = asin(cameraDirection.y);
+            float updatedYaw = curyaw < 0 ? 360+curyaw : curyaw;
+            printf("yaw: %f -> %f \n", curyaw, updatedYaw);
+            //printf("pitch: %f\n", curpitch);
 
             // START GENERATED CODE
             float yaw = 0.0f;     // Horizontal rotation
@@ -439,13 +509,8 @@ void handleSelection(){
     }
     if (collision_found && !rotationConfig.active)
     {
-        // TODO: write implementation
-        printf("Drag start (%f, %f), cur (%f, %f)\n", dragAction.startX , dragAction.startY , dragAction.x , dragAction.y); 
         float delta = 7.0f;
         float length = sqrt(pow(dragAction.startX - dragAction.x, 2) + pow(dragAction.startY - dragAction.y, 2));
-        // if( abs(dragAction.startX - dragAction.x) < delta|| abs(dragAction.startY - dragAction.y) < delta) {
-        //     return;
-        // } 
         float xDiff = abs(dragAction.startX - dragAction.x);
         float yDiff = abs(dragAction.startY - dragAction.y);
         int rotAxis = 0;
@@ -462,66 +527,63 @@ void handleSelection(){
                 isClockWise =  dragAction.x - dragAction.startX > 0;
             }
         }
-        printf("Exceed delta !\n");
         // FOR TEST ONLY
         // take clicked side 
         // if front, back -> x
         // if left, right -> y
         // if top, bottom -> x
         int rotBy = 0;
-        // if(collisionWith.selectedSideId == leftIdx || collisionWith.selectedSideId  == rightIdx){
-        //     rotBy = 2;
-        // }
+        
         if(collisionWith.selectedSideId == LEFT_IDX || collisionWith.selectedSideId  == RIGHT_IDX){
-            //printf("    raw value is:left/right\n");
-        } else if(collisionWith.selectedSideId == TOP_IDX || collisionWith.selectedSideId  == BOTTOM_IDX){
-            //printf("    raw value is:top/bottom\n");
-        } else{
-            //printf("    raw value is:front/back\n");
-        }
-        if(collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == LEFT_IDX || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx  == RIGHT_IDX){
-            //printf("    actual value is:left/right\n");
-        } else if(collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == TOP_IDX || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx  == BOTTOM_IDX){
-            //printf("    actual value is:top/bottom\n");
-        } else{
-            //printf("    actual value is:front/back\n");
-        }
-        if(
-            collisionWith.selectedSideId == LEFT_IDX || collisionWith.selectedSideId  == RIGHT_IDX
-            // collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == leftIdx 
-            // || collisionWith.cube.side[collisionWith.selectedSideId].sideIdx == rightIdx
-        ){
             if(rotAxis == 0){
-                rotBy = 2;
+               rotBy = 2;
             } else{
                 rotBy = 1;
             }
-            if(collisionWith.selectedSideId  == RIGHT_IDX)
+            if(collisionWith.selectedSideId  == RIGHT_IDX && rotBy == 2)
                 isClockWise = !isClockWise;
-        } else if( collisionWith.selectedSideId == FRONT_IDX || collisionWith.selectedSideId  == BACK_IDX){
+        } else if(collisionWith.selectedSideId == FRONT_IDX || collisionWith.selectedSideId  == BACK_IDX){
             // front: x,y -> x,y
             // left: x,y -> z,y
             // top (depends on the orientation): x,y -> x,z or z, x
             rotBy = rotAxis;
-            if(collisionWith.selectedSideId  == BACK_IDX)
+            if(collisionWith.selectedSideId  == BACK_IDX && rotBy == 0)
                 isClockWise = !isClockWise;
         } else if(collisionWith.selectedSideId == TOP_IDX || collisionWith.selectedSideId  == BOTTOM_IDX){
             glm::vec3 cameraDirection = glm::normalize(cameraTarget - cameraPosition);
             float yaw = glm::degrees(atan2(cameraDirection.x, cameraDirection.z));
-            printf("yaw: %f, pitch:%f\n", yaw);
-            rotBy = 1;
+            if(BOTTOM_IDX == collisionWith.selectedSideId ){
+                yaw = -yaw;
+            }
+    
+            //dragAction.startX - dragAction.x
+            float xStart = dragAction.startX* cosf(convert_to_rad(yaw)) + dragAction.startY *sinf(convert_to_rad(yaw));
+            float yStart = -dragAction.startX* sinf(convert_to_rad(yaw)) + dragAction.startY *cosf(convert_to_rad(yaw));
+            float x = dragAction.x* cosf(convert_to_rad(yaw)) + dragAction.y *sinf(convert_to_rad(yaw));
+            float y = -dragAction.x* sinf(convert_to_rad(yaw)) + dragAction.y *cosf(convert_to_rad(yaw));
+            xDiff = abs(xStart - x);
+            yDiff = abs(yStart - y);
+            float rawDiffY = y - yStart;
+            float rawDiffX =  x - xStart ;
+
+            //xˆ = x cos θ + y sin θ and ˆy = −x sin θ + y cos θ
+            //x = ˆx cos θ − yˆsin θ and y = ˆx sin θ + ˆy cos θ.
+             if(xDiff < yDiff){
+                rotBy = 0;
+                isClockWise = rawDiffY < 0;
+            }
+            else{
+                rotBy = 2;
+                isClockWise = rawDiffX > 0;
+                if(BOTTOM_IDX == collisionWith.selectedSideId ){
+                    isClockWise = !isClockWise;
+                }
+            }
            // TODO: define view angle
             //rotBy = 1;
         }
         float clickedXPos = cubeIdToPosition[collisionWith.modelIdx][rotBy];
-        //printf(
-        //     "           rotAxis: %d, X:%f, Y:%f, Z:%f\n",
-        //     rotBy,
-        //     cubeIdToPosition[collisionWith.modelIdx].x,
-        //     cubeIdToPosition[collisionWith.modelIdx].y,
-        //     cubeIdToPosition[collisionWith.modelIdx].z
-        // );
-        //printf("        AXIS_VALUE: %f \n", clickedXPos);
+    
         startRotation(rotBy, clickedXPos, isClockWise);
     }
     

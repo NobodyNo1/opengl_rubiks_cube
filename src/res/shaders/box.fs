@@ -7,6 +7,7 @@ out vec4 FragColor;
 
 uniform vec3 lightColor;
 uniform vec3 objectColor;
+uniform float alphaVal;
 
 void main()
 {
@@ -29,5 +30,5 @@ void main()
 
     // Final color calculation
     vec3 result = (ambient + diffuse + specular) * objectColor;
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(result, alphaVal);
 }

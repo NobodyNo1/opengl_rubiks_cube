@@ -114,6 +114,7 @@ int isOuterSide(int sideIdx, glm::vec3 cubePosition)
     y = cubePosition.y;
     z = cubePosition.z;
 
+
     /*
     - center sides have only one side colored
         - top and bottom item z==1 or z==-1; x==y
@@ -135,15 +136,14 @@ int isOuterSide(int sideIdx, glm::vec3 cubePosition)
         Front face
     */
     // center pices
-    int frontCheck = sideIdx == FRONT_IDX && z == 1;
-    int backCheck = sideIdx == BACK_IDX && z == -1;
-    int topCheck = sideIdx == TOP_IDX && y == 1;
-    int bottomCheck = sideIdx == BOTTOM_IDX && y == -1;
-    int rightCheck = sideIdx == RIGHT_IDX && x == 1;
-    int leftCheck = sideIdx == LEFT_IDX && x == -1;
+    int frontCheck  =    sideIdx  == FRONT_IDX   &&   z ==  1;
+    int backCheck   =    sideIdx  == BACK_IDX    &&   z == -1;
+    int topCheck    =    sideIdx  == TOP_IDX     &&   y ==  1;
+    int bottomCheck =    sideIdx  == BOTTOM_IDX  &&   y == -1;
+    int rightCheck  =    sideIdx  == RIGHT_IDX   &&   x ==  1;
+    int leftCheck   =    sideIdx  == LEFT_IDX    &&   x == -1;
 
-    return frontCheck || backCheck || topCheck || bottomCheck || rightCheck ||
-           leftCheck;
+    return  backCheck || bottomCheck || leftCheck || frontCheck || topCheck || rightCheck;
 }
 
 glm::vec3 getCubeSideColor(int sideIdx, glm::vec3 cubePosition)

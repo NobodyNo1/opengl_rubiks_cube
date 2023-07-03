@@ -1,3 +1,5 @@
+#define H_PI       3.14159265358979323846   // pi
+
 float mod(float a, float b){
     float c = a;
     while(c>b){
@@ -77,4 +79,11 @@ void bulkMatrixRotation(int is_forward, T modelIdxes[])
             inArr[1] = outArr[1];
         }
     }
+}
+
+double convert_to_rad(double angle_in_deg)
+{
+    double angle_in_rad;
+    angle_in_rad = (angle_in_deg * H_PI) / 180;
+    return angle_in_rad;
 }
