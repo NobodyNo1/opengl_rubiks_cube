@@ -9,6 +9,8 @@
 #include <iostream>
 #include "tools/shader_loader.h"
 #include "tools/path_helper.h"
+#include "ui/slider.h"
+#include "cube_init.h"
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -56,32 +58,7 @@ int start() {
 // === SETUP DATA ===
 
       // Create and bind the Vertex Array Object (VAO)
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    // Create and bind the Vertex Buffer Object (VBO)
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Create and bind the Element Buffer Object (EBO)
-    GLuint EBO;
-    glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // Set the vertex attribute pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    // Unbind the VAO, VBO, and EBO
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    
 
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
@@ -90,10 +67,16 @@ int start() {
     char* fragment_shader_path = get_path("src/res/shaders/box.fs");
 
     Shader ourShader(vertex_shader_path, fragment_shader_path);
-    GLuint projectionLocation = glGetUniformLocation(ourShader.ID, "projectionMatrix");
-    GLuint modelViewLocation = glGetUniformLocation(ourShader.ID, "modelViewMatrix");
-    GLuint viewLocation = glGetUniformLocation(ourShader.ID, "viewMatrix");
 
+    char* slider_vertex_shader_path = get_path("src/res/shaders/slider.vs");
+    char* slider_fragment_shader_path = get_path("src/res/shaders/slider.fs");
+
+    Shader slider_shader(slider_vertex_shader_path, slider_fragment_shader_path);
+    
+    GLuint VAO[2];
+    glGenVertexArrays(2, VAO);
+    cube_init(VAO[0]);
+    init_slider(VAO[1], slider_shader.ID);
 
     //initiallizing cube
     init3_3boxes();
@@ -118,10 +101,14 @@ int start() {
         ourShader.use();
         
         // Rotation angle defined by how far cursor is located from center of the screen
-        draw3_3by3boxes(ourShader.ID, VAO, cameraPositionState, dragAction);
-        //printf("    a:%f, x:%f, y:%f \n", cameraRotation.angle, cameraRotation.x, cameraRotation.y);
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
+        draw3_3by3boxes(ourShader.ID, VAO[0], cameraPositionState, dragAction);
+        slider_shader.use();
+        draw_slider(slider_shader.ID, VAO[1], WINDOW_WIDTH, WINDOW_HEIGHT);
+        // printf("    a:%f, x:%f, y:%f \n", cameraRotation.angle,
+        // cameraRotation.x, cameraRotation.y);
+        //  glfw: swap buffers and poll IO events (keys pressed/released, mouse
+        //  moved etc.)
+        //  -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     } 
