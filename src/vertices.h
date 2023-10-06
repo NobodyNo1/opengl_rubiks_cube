@@ -1,6 +1,5 @@
-#include <GLFW/glfw3.h>
-#define STB_IMAGE_IMPLEMENTATION
-// Define the vertex positions for the box
+#ifndef VERTICES_H
+#define VERTICES_H
 
 // Define the vertex positions for the box
 GLfloat vertices[] = {
@@ -61,3 +60,5 @@ GLuint indices[] = {
     20, 21, 22,
     22, 23, 20
 };
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef HELPER_H
+#define HELPER_H
+
 #define H_PI       3.14159265358979323846   // pi
 
 float mod(float a, float b){
@@ -87,3 +90,5 @@ double convert_to_rad(double angle_in_deg)
     angle_in_rad = (angle_in_deg * H_PI) / 180;
     return angle_in_rad;
 }
+
+#endif
