@@ -1,5 +1,8 @@
 #include <iostream>
 
+#ifndef PATH_HELPER_H
+#define PATH_HELPER_H
+
 static char* root_path;
 
 // for now path shouldn't start with slash "/ or \"
@@ -15,3 +18,4 @@ char* get_path(const char* local_path) {
 
     return real_path;
 }
+#endif

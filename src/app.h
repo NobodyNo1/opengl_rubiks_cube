@@ -55,14 +55,12 @@ int start() {
     }
     
 
-// === SETUP DATA ===
-
-      // Create and bind the Vertex Array Object (VAO)
-    
+    // === SETUP DATA ===    
 
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
     
+    // Load shaders
     char* vertex_shader_path = get_path("src/res/shaders/box.vs");
     char* fragment_shader_path = get_path("src/res/shaders/box.fs");
 
@@ -73,6 +71,7 @@ int start() {
 
     Shader slider_shader(slider_vertex_shader_path, slider_fragment_shader_path);
     
+    // Create and bind the Vertex Array Object (VAO)
     GLuint VAO[2];
     glGenVertexArrays(2, VAO);
     cube_init(VAO[0]);
