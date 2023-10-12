@@ -1,11 +1,11 @@
-#include <objects/object.h>
-#include <objects/rubiks_cube.h>
-#include <config.h>
+#include <objects/object.hpp>
+#include <objects/rubiks_cube.hpp>
+#include <config.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
-#include <objects/triangle.h>
-#include <handler/actions/drag.h>
+#include <objects/triangle.hpp>
+#include <handler/actions/drag.hpp>
 // #include <glm/gtc/type_ptr.hpp>
 
 class View: public Object{
@@ -34,7 +34,13 @@ public:
     ~View(){
         delete rubiksCube;
     }
-    void update(DragAction* drag){
+    void update(DragAction* drag) {
+        rubiksCube->update(
+            projectionMatrix,
+            viewMatrix,
+            cameraPosition,
+            drag
+        );
         handleCameraPosition(drag->dragState);
     }
 

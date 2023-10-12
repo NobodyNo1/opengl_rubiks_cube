@@ -1,11 +1,11 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "mouse.h"
-#include "keyboard.h"
+#include "mouse.hpp"
+#include "keyboard.hpp"
 #include <math.h>
-#include "actions/drag.h"
-#include "actions/swipe.h"
+#include "actions/drag.hpp"
+#include "actions/swipe.hpp"
 
 
 class ActionHandler {

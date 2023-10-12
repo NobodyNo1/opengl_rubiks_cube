@@ -1,5 +1,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "object_config.hpp"
 
 #define BOTTOM_IDX   0
 #define TOP_IDX      1
@@ -39,6 +40,19 @@ class Side{
             sideIdx = id;
             color = getCubeSideColor(cubePosition);
         }
+        int getSideIdx(){
+            return sideIdx;
+        }
+        void updateSideIdx(int idx){
+            sideIdx = idx;
+        }
+        glm::vec3  getColor(){
+            return color;
+        }
+        void updateColor(glm::vec3 col){
+            color = col;
+        }
+
         void update() {
 
             return;
@@ -151,7 +165,7 @@ class Side{
 
         int isOuterSide(glm::vec3 cubePosition)
         {
-            int x, y, z;
+            float x, y, z;
             x = cubePosition.x;
             y = cubePosition.y;
             z = cubePosition.z;
@@ -178,12 +192,12 @@ class Side{
                 Front face
             */
             // center pices
-            int frontCheck  =    sideIdx  == FRONT_IDX   &&   z ==  1;
-            int backCheck   =    sideIdx  == BACK_IDX    &&   z == -1;
-            int topCheck    =    sideIdx  == TOP_IDX     &&   y ==  1;
-            int bottomCheck =    sideIdx  == BOTTOM_IDX  &&   y == -1;
-            int rightCheck  =    sideIdx  == RIGHT_IDX   &&   x ==  1;
-            int leftCheck   =    sideIdx  == LEFT_IDX    &&   x == -1;
+            int frontCheck  =    sideIdx  == FRONT_IDX   &&   z ==  CUBE_SIZE - CUBE_SHIFT - 1;
+            int backCheck   =    sideIdx  == BACK_IDX    &&   z ==  0 - CUBE_SHIFT;
+            int topCheck    =    sideIdx  == TOP_IDX     &&   y ==  CUBE_SIZE - CUBE_SHIFT - 1;
+            int bottomCheck =    sideIdx  == BOTTOM_IDX  &&   y ==  0 - CUBE_SHIFT;
+            int rightCheck  =    sideIdx  == RIGHT_IDX   &&   x ==  CUBE_SIZE - CUBE_SHIFT - 1;
+            int leftCheck   =    sideIdx  == LEFT_IDX    &&   x ==  0 - CUBE_SHIFT;
 
             return  backCheck || bottomCheck || leftCheck || frontCheck || topCheck || rightCheck;
         }

@@ -85,6 +85,8 @@
         "chrono": "cpp",
         "compare": "cpp",
         "concepts": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "map": "cpp",
+        "__tree": "cpp"
     }
 }

@@ -1,4 +1,4 @@
-#include <handler/mouse.h>
+#include <handler/mouse.hpp>
 
 #ifndef DRAG_H
 #define DRAG_H
@@ -7,6 +7,11 @@
 typedef struct DragState {
     float x;
     float y;
+
+    bool isActive() {
+        bool isNotActive = x == 0.0f && y == 0.0f;
+        return !isNotActive;
+    }
 } DragState;
 
 class DragAction{

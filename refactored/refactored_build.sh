@@ -1,5 +1,5 @@
 #!/bin/bash
-g++ -Iinclude/external -Iinclude/rubikscube -Llib/mac/ -lglfw3 src/external/glad.c src/main.cpp -framework IOKit -framework Cocoa -framework OpenGL -o build/mac_rubiks_cube --std=c++11
+g++ -g -Iexternal/include -Isrc -Lexternal/lib/mac/ -lglfw3 external/glad.c src/main.cpp -framework IOKit -framework Cocoa -framework OpenGL -o build/mac_rubiks_cube --std=c++11
 
 # TODO:
 # 1. Execute build from the build folder
