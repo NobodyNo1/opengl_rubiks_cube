@@ -5,34 +5,26 @@
 #include <glm/gtc/type_ptr.hpp>
 #define STB_IMAGE_IMPLEMENTATION
 #include <iostream>
-#include "config.h"
+#include "config.hpp"
 // #include "draw.h"
 // 
 // #include "tools/shader_loader.h"
 // #include "tools/path_helper.h"
 // #include "ui/slider.h"
 // #include "cube_init.h"
-#include <tools/logger.h>
-#include <tools/shader_loader.h>
-#include <objects/view.h>
-#include <iostream>
-#include <handler/action.h>
+#include <tools/logger.hpp>
+#include <tools/shader_loader.hpp>
+#include <objects/view.hpp>
+#include <handler/action.hpp>
 
 #define SUCCESS_EXIT     0
 #define FAIL_EXIT       -1
-
-
-#define end_with_error(message)   \
-    exit_result = FAIL_EXIT;      \
-    log(LOG_ERROR, message);     \
-    goto end;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 GLFWwindow* setupGLFW() {
     // === OPEN GL INIT ===
-    int exit_result = SUCCESS_EXIT;
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -88,23 +80,7 @@ int start() {
     if (window == nullptr) {
         return EXIT_FAILURE;
     }
-
-    
-    
-    // Load shaders
-    // const char* vertex_shader_path = "res/shaders/box.vs";
-    // const char* fragment_shader_path = "res/shaders/box.fs";
-
-    // Shader ourShader(vertex_shader_path, fragment_shader_path);
-
-    // char* slider_vertex_shader_path = "res/shaders/slider.vs";
-    // char* slider_fragment_shader_path = "res/shaders/slider.fs";
-
-    //Shader slider_shader(slider_vertex_shader_path, slider_fragment_shader_path);
-    
-    // Create and bind the Vertex Array Object (VAO)
     View *view = new View();
-    
     //init_slider(VAO[1], slider_shader.ID);
    
     glEnable(GL_DEPTH_TEST);
@@ -115,17 +91,8 @@ int start() {
     actionHandler = new ActionHandler(window);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     
-    //glfwSetMouseButtonCallback(window, mouse_button_callback);
     while (!glfwWindowShouldClose(window))
     {        
-        // input
-        // -----
-        // processMouseInput(window, WINDOW_WIDTH, WINDOW_HEIGHT);
-        // processKeyboardInput(window);
-        // //Handle Actions
-        // handleActions(WINDOW_WIDTH, WINDOW_HEIGHT);
-        // render
-        // ------
         actionHandler->handleActions(window, WINDOW_WIDTH, WINDOW_HEIGHT);
 
         view->update(actionHandler->dragAction);

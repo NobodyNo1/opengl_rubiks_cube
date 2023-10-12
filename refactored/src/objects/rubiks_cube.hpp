@@ -1,17 +1,23 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "object.h"
+#include "object.hpp"
 #include <glm/glm.hpp>
-#include "cube.h"
-#include <tools/shader_loader.h>
+#include "cube.hpp"
+#include <tools/shader_loader.hpp>
 #include <iostream>
 #include <stdexcept>
+#include "stdbool.h"
+#include "object_config.hpp"
+#include <handler/actions/drag.hpp>
+#include "stdbool.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 #define PADDING 0.01f
 #define SPREAD 1.0f + PADDING
 
 // Indices of cube sides
 
+const float INTERSECTION_MAGNITUDE_LIMIT = 100000.0f;
 // Define the vertex positions for the box
 GLfloat vertices[] = {
     // Position             // Normals
@@ -86,32 +92,34 @@ GLuint indices[] = {
 //     Side side[6];
 // };
 
+
 // Description of how cube side ? should be rotated
 struct RotationConfig
 {
-    int active;
+    bool isActive;
     float angle;   // -90.0f .. 90.0f
     int axisIndex;
     int axisValue;
     float startRotationTime;
-    int isClockWise;
+    bool isClockWise;
 };
 
-typedef struct RubicsCubeSize{
-    int x;
-    int y;
-    int z;
-} RubicsCubeSize;
 
 class RubiksCube : public Object {
 private:
     GLuint RB_VAO;
     Cube* cubes;
+    // real cube positions
     glm::vec3 *cubeIdToPosition;
-    RotationConfig rotationConfig = {0, 0.0f, 0, 0, 0.0f, 0};
-    RubicsCubeSize cubeSize = {0,0,0};
+    RotationConfig rotationConfig = { 0, 0.0f, 0, 0, 0.0f, 0 };
+    const int   cubeSize     = CUBE_SIZE;
+    const int   cubeElements = cubeSize * cubeSize * cubeSize;
+    const float cubeShift    = CUBE_SHIFT;
     glm::mat4 defaultModelMatrix = glm::mat4(1.0f);
     Shader *rcShader;
+    DragState startDrag = { 0.0f, 0.0f };
+    glm::mat4 identityMat = glm::mat4(1.0f);
+
 
 public:
     RubiksCube(GLuint VAO) {
@@ -157,27 +165,32 @@ public:
     {
         // TODO: needs to update after custom sized RB will be implemented
         // cubes = (struct Cube *) malloc(sizeof(struct Cube)*27);
-        cubeSize = {x,y,z};
-        int cubeCount = cubeSize.x * cubeSize.y * cubeSize.z;
-        cubes = new Cube[cubeCount];
+        cubes = new Cube[cubeElements];
         // why we need this?
-        cubeIdToPosition = new glm::vec3[cubeCount];
+        cubeIdToPosition = new glm::vec3[cubeElements];
         int modelIdx = 0;
 
-        for (int i = 0; i < cubeSize.x; i++)
+        for (int i = 0; i < cubeSize; i++)
         {
-            for (int j = 0; j < cubeSize.y; j++)
+            bool isInnerZ = i>0 && i< cubeSize-1;
+
+            for (int j = 0; j < cubeSize; j++)
             {
-                for (int k = 0; k < cubeSize.z; k++)
+                bool isInnerY = j>0 && j< cubeSize-1;
+
+                for (int k = 0; k < cubeSize; k++)
                 {
+                    bool isInnerX = k>0 && k< cubeSize-1;
+                    if (isInnerZ && isInnerY && isInnerX)
+                        continue;
                     // skipping center cube
                     // START : works only for the 3x3x3 cube
-                    if (k == 1 && k == j && j == i)
-                        continue;
+                    // if (k == 1 && k == j && j == i)
+                    //     continue;
                     
-                    modelIdx = 3 * (3 * i + j) + k;
-
-                    glm::vec3 cubePosition = glm::vec3(k - 1, j - 1, i - 1);
+                    modelIdx = cubeSize * (cubeSize * i + j) + k;
+                    
+                    glm::vec3 cubePosition = glm::vec3(k - cubeShift, j - cubeShift, i - cubeShift);
                     cubes[modelIdx] = Cube(modelIdx, cubePosition);
                     // END : works only for the 3x3x3 cube
                     
@@ -195,8 +208,124 @@ public:
         delete cubeIdToPosition;
     }
 
-    void update(){
+    void update(
+        glm::mat4 projection,
+        glm::mat4 view,
+        glm::vec3 cameraPosition,
+        DragAction* dragAction
+    ) {
+        handleRotation(projection, view, cameraPosition, dragAction);
+    }
 
+    void handleRotation(
+        glm::mat4 projection,
+        glm::mat4 view,
+        glm::vec3 cameraPosition,
+        DragAction* dragAction
+    ) {
+        if (rotationConfig.isActive) {
+           rotationAnimation();
+        } else {
+            handleRotateAction(projection, view, cameraPosition, dragAction);
+        }
+    }
+
+    void rotationAnimation() {
+        if (!rotationConfig.isActive) return;
+        
+    }
+
+    void handleRotateAction(
+        glm::mat4 projection,
+        glm::mat4 view,
+        glm::vec3 cameraPosition,
+        DragAction* dragAction
+    ) {
+        if (rotationConfig.isActive) return;
+
+        if(!dragAction->dragState.isActive()) return;
+        if (startDrag.isActive())
+        {
+            //calculate swipe
+            /*
+                if start - cur > delta
+                     start rotation
+                else
+                    return 
+            */
+        } 
+        // check if collides
+        startDrag = dragAction->dragState;
+    }
+
+    bool isRotActive = true;
+    float angle = 0.0f;
+    float angularSpeed = 90.0f/180;
+    int axisIndex = 1;
+    bool direction = true;
+    float axisValue = 1.5f;
+    glm::vec3 rotationVec = glm::vec3(0.0f, 0.5f, 0.0f);
+
+    void updateCubePosition(){
+         for (int i = 0; i < cubeSize; i++)
+        {
+            bool isInnerZ = i>0 && i< cubeSize-1;
+
+            for (int j = 0; j < cubeSize; j++)
+            {
+                bool isInnerY = j>0 && j< cubeSize-1;
+
+                for (int k = 0; k < cubeSize; k++)
+                {
+                    bool isInnerX = k>0 && k< cubeSize-1;
+                    if (isInnerZ && isInnerY && isInnerX)
+                        continue;
+                    int modelIdx = cubeSize * (cubeSize * i + j) + k;
+                    //  glm::vec3 cubePosition = glm::vec3(
+                    //     k - cubeShift, j - cubeShift, i - cubeShift);   // cubeIdToPosition[cube.cubeId];
+                    glm::vec3 cubePosition = cubes[modelIdx].position;
+                    float posToUpdate = cubePosition[axisIndex];
+                    if (posToUpdate == axisValue)
+                    {
+                        cubes[modelIdx].rotate(posToUpdate>0.0f,direction,axisIndex);
+                    }
+                }
+            }
+        }
+    }
+
+    void rotationUpdate(){
+        if(!isRotActive) return;
+        angle+=angularSpeed;
+        if(angle > 90.0f){
+            updateCubePosition();
+            isRotActive = false;
+            return;
+        }
+        if (angle >= 360.0f){
+            angle = 0.0f;
+        }
+    }
+
+    void rotateObject(glm::mat4& model, glm::vec3 cubePosition)
+    {
+        // if (!rotationConfig.active)
+        //     return;
+        // if (rotationConfig.angle >= 90.0f)
+        // {
+        //     return;
+        // }
+        
+        float posToUpdate = cubePosition[axisIndex];
+        if (posToUpdate == axisValue)
+        {
+            // if(convertionIncr<9) {
+            //     //printf("~~~~~ found items: z:%f, y:%f, x:%f\n", cubePosition.x, cubePosition.y, cubePosition.z);
+            //     convertionIncr++;
+            // }
+            model = glm::rotate(identityMat, glm::radians(angle),
+                                rotationVec);
+        }
     }
 
     void draw(
@@ -222,24 +351,27 @@ public:
         glm::vec3 cubePosition = glm::vec3(0,0,0);  
                          // cubeIdToPosition[cube.cubeId];
                     
-
+        rotationUpdate();
         //handleSideRotation();
-
-        for (int i = 0; i < cubeSize.x; i++)
+        for (int i = 0; i < cubeSize; i++)
         {
-            for (int j = 0; j < cubeSize.y; j++)
+            bool isInnerZ = i>0 && i< cubeSize-1;
+
+            for (int j = 0; j < cubeSize; j++)
             {
-                for (int k = 0; k < cubeSize.z; k++)
+                bool isInnerY = j>0 && j< cubeSize-1;
+
+                for (int k = 0; k < cubeSize; k++)
                 {
-                    // skipping center cube
-                    if (k == 1 && k == j && j == i)
+                    bool isInnerX = k>0 && k< cubeSize-1;
+                    if (isInnerZ && isInnerY && isInnerX)
                         continue;
-                    
-                    modelIdx = 3 * (3 * i + j) + k;
+
+                    modelIdx = cubeSize * (cubeSize * i + j) + k;
                     // Cube cube = getModel(modelIdx);
 
                     glm::vec3 cubePosition = glm::vec3(
-                        k - 1, j - 1, i - 1);   // cubeIdToPosition[cube.cubeId];
+                        k - cubeShift, j - cubeShift, i - cubeShift);   // cubeIdToPosition[cube.cubeId];
                     
 
                     modelMatrix = defaultModelMatrix;
@@ -247,7 +379,8 @@ public:
                     // testing rotation
                     // if (rotationConfig.active)
                     // {
-                    //     rotateObject(modelMatrix, cubePosition); //cubeIdToPosition[getModel(modelIdx).cubeId]);
+                        if(isRotActive)
+                           rotateObject(modelMatrix, cubePosition); //cubeIdToPosition[getModel(modelIdx).cubeId]);
                     // }
                     glm::vec3 cubePositionWithSpread = spread * cubePosition;
                     modelMatrix = glm::translate(modelMatrix, cubePositionWithSpread);

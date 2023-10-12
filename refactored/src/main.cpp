@@ -1,4 +1,5 @@
-#include "app.h"
+// #include "tools/memtrack.hpp"
+#include "app.hpp"
 
 // TODO: figure out better way of sending resourses (think how it will work on final build)
 // build script should copy resources to the build folder, after which relative path
